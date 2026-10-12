@@ -26,7 +26,10 @@ Týždenný rozvrh, úlohy s termínmi a návrhy, kedy čo robiť. Jedna appka p
   - Odmena za akciu/projekt alebo na hodinu (hodiny z dĺžky akcie, odpracovaných blokov alebo zadané ručne), zoznam výdavkov, čistý zisk.
   - Mesačný prehľad: zárobok, výdavky, čistý zisk a čo ešte čaká na platbu. Stavy Dohodnuté → Potvrdené → Hotové → Zaplatené.
 - **Kalendár**: udalosti, cesty, pripomienky, celodenné akcie, termíny úloh; mesačný prehľad.
-- **Upozornenia** (keď je appka otvorená): pripomienky a udalosti s upozornením vopred, voliteľne aj začiatok bloku práce.
+- **Push notifikácie** aj pri zatvorenej appke, na mobile aj PC (Nastavenia → Upozornenia):
+  - pripomienky udalostí a spojov, začiatok bloku práce, blížiaci sa termín, čas vyraziť na freelance akciu, ranný prehľad dňa,
+  - tichý režim v noci (prejdú len pripomienky udalostí a odchod na akcie), zoznam zariadení, tlačidlo na testovaciu notifikáciu,
+  - na iPhone fungujú len z appky pridanej na plochu (Safari → Zdieľať → Pridať na plochu), na Androide aj v Chrome.
 - **Synchronizácia v reálnom čase**: zmena na PC sa na mobile prejaví do ~1 s (Supabase Realtime) a naopak.
 - Svetlá a tmavá téma, rozloženie pre mobil (spodná navigácia, denný pohľad).
 
@@ -73,6 +76,10 @@ Free projekt Supabase so zabudovaným e-mailovým serverom šablóny upraviť **
 4. Spusti `npm run emails:apply`. Nahrá SMTP nastavenia, predmety aj šablóny naraz.
 
 Ručne to ide aj v dashboarde: *Authentication → Emails* (SMTP Settings a potom Templates, obsah súborov skopíruj dnu).
+
+### Ako fungujú notifikácie
+
+Každú minútu `pg_cron` zavolá Edge Function `send-notifications` (zdroj v `supabase/functions/`). Tá zistí, čo je splatné (`due.ts`, pokryté testami), pošle to cez Web Push na zariadenia z tabuľky `push_subscriptions` a zapíše do `notification_log`, aby nič neprišlo dvakrát. VAPID kľúče a tajomstvo pre cron sú v Supabase Vault (`vapid_public_key`, `vapid_private_key`, `push_cron_secret`, `project_url`), v gite nie sú. Verejný kľúč je aj v `VITE_VAPID_PUBLIC_KEY`.
 
 ## Architektúra
 

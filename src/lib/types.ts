@@ -15,6 +15,18 @@ export interface Profile {
   odd_week_anchor: string; // "YYYY-MM-DD", a Monday of an odd week
   freelance_enabled: boolean;
   freelance_default_mode: GigMode;
+  timezone: string;
+  notify_events: boolean;
+  notify_sessions: boolean;
+  session_lead_minutes: number;
+  notify_gigs: boolean;
+  notify_deadlines: boolean;
+  deadline_lead_hours: number;
+  notify_summary: boolean;
+  summary_time: string;
+  quiet_enabled: boolean;
+  quiet_from: string;
+  quiet_to: string;
 }
 
 /** event = a gig at a place and time (loading, moving, event work); project = task-based work */

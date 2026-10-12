@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg', 'badge-96x96.png', 'push-sw.js'],
       manifest: {
         name: 'Rozvrh – plánovač času',
         short_name: 'Rozvrh',
@@ -29,6 +29,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // push + notification click handlers live in public/push-sw.js
+        importScripts: ['push-sw.js'],
         navigateFallback: '/index.html',
         // Supabase traffic always goes to the network
         navigateFallbackDenylist: [/^\/auth\//],

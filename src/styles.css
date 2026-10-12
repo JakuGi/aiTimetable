@@ -2313,6 +2313,83 @@ input[type='checkbox'] {
   }
 }
 
+/* ------------------------------------------------------------------ notification settings */
+
+.device-state {
+  padding: 12px 14px;
+  border-radius: var(--radius-m);
+  background: var(--sunk);
+  margin-bottom: 8px;
+}
+.device-state p {
+  margin: 0;
+  font-size: 14px;
+}
+.device-state .actions {
+  margin-top: 12px;
+}
+.device-on {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.dot-on {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent);
+}
+.devices {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.devices li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.devices li > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.devices .this-device {
+  color: var(--ok);
+  font-weight: 600;
+}
+.notif-settings h3 {
+  margin: 18px 0 6px;
+}
+.notif-row {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0 2px;
+}
+.notif-row .switch-row {
+  margin-bottom: 8px;
+}
+.notif-row.is-off b {
+  color: var(--muted);
+}
+.notif-extra {
+  margin: -2px 0 10px;
+}
+.notif-extra select,
+.notif-extra input[type='time'] {
+  width: auto;
+}
+.time-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ------------------------------------------------------------------ responsive */
 
 @media (max-width: 1100px) and (min-width: 761px) {

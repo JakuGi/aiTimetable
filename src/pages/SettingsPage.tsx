@@ -9,7 +9,8 @@ import { DEFAULT_CLASS_PERIODS, DEFAULT_PRIORITY_COLORS, PRIORITY_LABELS } from 
 import { FREELANCE_CATEGORY, FREELANCE_COLOR, GIG_MODES } from '../lib/freelance';
 import { fmt, fmtDuration, minutesToTime, timeToMinutes, toDateInput, weekParity, weekStart } from '../lib/time';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
-import { notificationsSupported, requestNotifications, getSessionAlerts, setSessionAlerts } from '../lib/useReminders';
+import { disablePush } from '../lib/push';
+import { NotificationSettings } from './NotificationSettings';
 import type { ClassPeriod, GigMode, Priority } from '../lib/types';
 import { Field, Segmented } from '../editor/fields';
 
@@ -20,8 +21,6 @@ export function SettingsPage() {
   const [form, setForm] = useState(profile);
   const [newCat, setNewCat] = useState({ name: '', color: '#12A39A' });
   const [theme, setThemeState] = useState<Theme>(getTheme());
-  const [perm, setPerm] = useState(notificationsSupported() ? Notification.permission : 'denied');
-  const [sessionAlerts, setAlerts] = useState(getSessionAlerts());
 
   useEffect(() => setForm(profile), [profile]);
 
@@ -144,7 +143,7 @@ export function SettingsPage() {
         </section>
 
         <section className="card-section">
-          <h2>Vzhľad a upozornenia</h2>
+          <h2>Vzhľad</h2>
           <Field label="Téma">
             <Segmented
               label="Téma"
@@ -160,36 +159,9 @@ export function SettingsPage() {
               ]}
             />
           </Field>
-          {notificationsSupported() ? (
-            <>
-              <p className="small">
-                {perm === 'granted'
-                  ? 'Upozornenia sú povolené na tomto zariadení.'
-                  : perm === 'denied'
-                    ? 'Upozornenia sú v prehliadači zablokované. Povoľ ich v nastaveniach stránky.'
-                    : 'Povoľ upozornenia, aby ťa appka upozornila na udalosti a pripomienky.'}
-              </p>
-              {perm === 'default' && (
-                <button className="btn btn-ghost" onClick={async () => setPerm(await requestNotifications())}>
-                  Povoliť upozornenia
-                </button>
-              )}
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={sessionAlerts}
-                  onChange={(e) => {
-                    setSessionAlerts(e.target.checked);
-                    setAlerts(e.target.checked);
-                  }}
-                />
-                Upozorniť aj na začiatok naplánovaného bloku práce
-              </label>
-            </>
-          ) : (
-            <p className="small muted">Tento prehliadač nepodporuje upozornenia.</p>
-          )}
         </section>
+
+        <NotificationSettings />
 
         <section className="card-section">
           <h2>Účet</h2>
@@ -201,7 +173,14 @@ export function SettingsPage() {
             <button className="btn btn-primary" onClick={saveProfile}>
               Uložiť meno
             </button>
-            <button className="btn btn-ghost" onClick={() => supabase.auth.signOut()}>
+            <button
+              className="btn btn-ghost"
+              onClick={async () => {
+                // this device must stop receiving the account's notifications
+                await disablePush().catch(() => {});
+                await supabase.auth.signOut();
+              }}
+            >
               Odhlásiť sa
             </button>
           </div>
