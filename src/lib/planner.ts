@@ -1,5 +1,6 @@
 import { addDays, startOfDay } from 'date-fns';
-import type { CalendarEvent, Profile, RoutineBlock, Session, Task } from './types';
+import type { CalendarEvent, Gig, Profile, RoutineBlock, Session, Task } from './types';
+import { gigBusy } from './freelance';
 import { DAY, MINUTE, atMinutes, isoWeekday, timeToMinutes, toDateInput, weekParity } from './time';
 
 /**
@@ -35,6 +36,8 @@ export interface PlannerInput {
   events: CalendarEvent[];
   sessions: Session[];
   tasks: Task[];
+  /** freelance gigs: event gigs (with preparation and travel) are busy time */
+  gigs?: Gig[];
 }
 
 export interface Suggestion {
@@ -177,6 +180,10 @@ export function plan(input: PlannerInput): PlannerResult {
       const iv = eventInterval(e);
       state.free = subtract(state.free, iv);
       if (e.kind === 'leisure') leisureHad += overlapMinutes(iv, dayInterval);
+    }
+    for (const g of input.gigs ?? []) {
+      const iv = gigBusy(g);
+      if (iv) state.free = subtract(state.free, iv);
     }
     for (const s of active) {
       const iv = { start: new Date(s.starts_at).getTime(), end: new Date(s.ends_at).getTime() };

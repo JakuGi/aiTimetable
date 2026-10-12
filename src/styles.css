@@ -1897,6 +1897,366 @@ input[type='checkbox'] {
   font-weight: 600;
 }
 
+/* ------------------------------------------------------------------ freelance */
+
+.label-short {
+  display: none;
+}
+
+/* on/off switch built on a checkbox */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.switch-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 44px !important;
+  height: 26px !important;
+  border-radius: 13px;
+  background: var(--line-strong);
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  border: 0;
+  padding: 0;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform 0.15s;
+}
+.switch:checked {
+  background: var(--ok);
+}
+.switch:checked::after {
+  transform: translateX(18px);
+}
+
+/* the month as a ledger page: ruled rows, amounts right-aligned, double rule under the net */
+.ledger {
+  max-width: 560px;
+  margin-bottom: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-l);
+  padding: 10px 18px 14px 26px;
+  position: relative;
+}
+.ledger::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 14px;
+  width: 2px;
+  background: var(--margin);
+  opacity: 0.6;
+}
+.ledger-month {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.ledger-month span {
+  font-weight: 800;
+  font-size: 17px;
+  min-width: 140px;
+  text-align: center;
+}
+.ledger-month span::first-letter {
+  text-transform: uppercase;
+}
+.ledger-month .icon-btn {
+  width: 30px;
+  height: 30px;
+  border-color: transparent;
+}
+.ledger-rows {
+  margin: 0;
+}
+.ledger-rows > div,
+.gig-sum > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ledger-rows dt,
+.gig-sum dt {
+  color: var(--ink-2);
+}
+.ledger-rows dd,
+.gig-sum dd {
+  margin: 0;
+  font-weight: 700;
+}
+.ledger-rows .is-net,
+.gig-sum .is-net {
+  border-bottom: 3px double var(--ink);
+}
+.ledger-rows .is-net dt,
+.gig-sum .is-net dt {
+  color: var(--ink);
+  font-weight: 700;
+}
+.ledger-rows .is-net dd,
+.gig-sum .is-net dd {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ok);
+}
+.ledger-rows .is-owed {
+  border-bottom: 0;
+}
+.ledger-rows .is-owed dd small {
+  font-weight: 500;
+  color: var(--muted);
+}
+.is-loss,
+.ledger-rows .is-net dd.is-loss,
+.gig-sum .is-net dd.is-loss {
+  color: var(--margin);
+}
+
+.freelance-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.gig-days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 980px;
+}
+.gig-day {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+}
+.gig-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  line-height: 1.1;
+}
+.gig-date b {
+  font-size: 22px;
+  font-weight: 800;
+}
+.gig-date span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.gig-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.gig-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--c);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+.gig-main {
+  font: inherit;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.gig-title {
+  font-weight: 700;
+  font-size: 15.5px;
+}
+.gig-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.gig-mode {
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.gig-mode.mode-project {
+  border-bottom: 1.5px dashed currentColor;
+}
+.gig-status {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.status-done .gig-status {
+  color: var(--margin);
+  font-weight: 700;
+}
+.status-paid .gig-status {
+  color: var(--ok);
+  font-weight: 700;
+}
+.status-cancelled {
+  opacity: 0.55;
+}
+.status-cancelled .gig-title {
+  text-decoration: line-through;
+}
+.gig-money {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+.gig-money b {
+  font-size: 16px;
+}
+.gig-money span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* gig dialog */
+.gig-mode-hint {
+  margin-top: -8px;
+}
+.gig-section {
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+  margin-top: 6px;
+}
+.gig-section h3 {
+  margin: 10px 0 12px;
+}
+.expenses {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.minutes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.minutes-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.minutes-custom input {
+  width: 72px;
+  padding: 5px 8px;
+}
+.expenses li {
+  display: grid;
+  grid-template-columns: 1fr 96px 34px;
+  gap: 6px;
+  align-items: center;
+}
+.gig-sum {
+  margin: 14px 0 6px;
+  padding: 2px 12px;
+  border-radius: var(--radius-m);
+  background: var(--sunk);
+}
+.gig-sum > div:last-child {
+  border-bottom: 3px double var(--ink);
+}
+
+@media (max-width: 760px) {
+  .has-6-tabs .nav .label-long {
+    display: none;
+  }
+  .has-6-tabs .nav .label-short {
+    display: inline;
+  }
+  .has-6-tabs .nav-link {
+    font-size: 10px;
+  }
+  .page-freelance .toolbar-actions {
+    width: 100%;
+  }
+  .page-freelance .toolbar-actions .btn {
+    flex: 1;
+  }
+  .ledger {
+    padding: 8px 12px 10px 22px;
+  }
+  .ledger::before {
+    left: 11px;
+  }
+  .gig-day {
+    grid-template-columns: 34px 1fr;
+    gap: 6px;
+  }
+  .gig-date b {
+    font-size: 18px;
+  }
+  .gig-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .gig-money {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .gig-money b {
+    margin-right: auto;
+  }
+}
+
 /* ------------------------------------------------------------------ responsive */
 
 @media (max-width: 1100px) and (min-width: 761px) {
@@ -2049,6 +2409,62 @@ input[type='checkbox'] {
     flex: none;
     height: 62dvh;
   }
+  /* several days side by side: weekday above the date, smaller type, nothing spills over */
+  .segmented button {
+    white-space: nowrap;
+  }
+  .wk-row-sub .segmented button {
+    padding: 6px 10px;
+  }
+  .grid-dense .grid-day-head {
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 5px 0 4px;
+    min-width: 0;
+    overflow: hidden;
+    line-height: 1.1;
+  }
+  .grid-dense .grid-day-head .dow {
+    font-size: 10.5px;
+  }
+  .grid-dense .grid-day-head .dom {
+    font-size: 15px;
+  }
+  .grid-dense .grid-day-head.is-today .dom {
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
+  }
+  .grid-dense .strip-label-long {
+    display: none;
+  }
+  .grid-dense .strip-cell {
+    padding: 3px 2px;
+    gap: 2px;
+  }
+  .grid-dense .strip-chip {
+    font-size: 10px;
+    padding: 1px 3px;
+    border-left-width: 2px;
+  }
+  .grid-dense .block {
+    padding: 2px 3px;
+    font-size: 10.5px;
+  }
+  .grid-dense .block-title {
+    gap: 3px;
+  }
+  .grid-dense .block-time,
+  .grid-dense .block-detail,
+  .grid-dense .marker {
+    display: none;
+  }
+  .grid-dense .block-title {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.15;
+  }
+
   /* one day: the day strip / weekday picker above already names it */
   .grid-single-day .grid-head {
     display: none;
@@ -2154,6 +2570,15 @@ input[type='checkbox'] {
   .toast {
     font-size: 13px;
     padding: 8px 12px;
+  }
+}
+
+@media (max-width: 400px) {
+  .label-long {
+    display: none;
+  }
+  .label-short {
+    display: inline;
   }
 }
 

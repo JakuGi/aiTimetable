@@ -2,7 +2,17 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabase } from './supabase';
 import { useAuth } from '../auth/AuthProvider';
 import { useToast } from '../components/Toast';
-import type { CalendarEvent, Category, EventTemplate, Profile, RoutineBlock, Session, TableName, Task } from './types';
+import type {
+  CalendarEvent,
+  Category,
+  EventTemplate,
+  Gig,
+  Profile,
+  RoutineBlock,
+  Session,
+  TableName,
+  Task,
+} from './types';
 import type { Suggestion } from './planner';
 
 interface Tables {
@@ -13,6 +23,7 @@ interface Tables {
   events: CalendarEvent[];
   sessions: Session[];
   event_templates: EventTemplate[];
+  gigs: Gig[];
 }
 
 type Row<T extends TableName> = Tables[T][number];
@@ -42,6 +53,7 @@ const ORDER: Record<TableName, { column: string; ascending: boolean }> = {
   events: { column: 'starts_at', ascending: true },
   sessions: { column: 'starts_at', ascending: true },
   event_templates: { column: 'start_time', ascending: true },
+  gigs: { column: 'created_at', ascending: false },
 };
 
 const TABLES = Object.keys(ORDER) as TableName[];
@@ -53,6 +65,7 @@ const EMPTY: Tables = {
   events: [],
   sessions: [],
   event_templates: [],
+  gigs: [],
 };
 
 const DataContext = createContext<DataApi | null>(null);
@@ -185,6 +198,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       events: data.events,
       sessions: data.sessions,
       event_templates: data.event_templates,
+      gigs: data.gigs,
       loading,
       insert,
       insertMany,

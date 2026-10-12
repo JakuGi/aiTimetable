@@ -231,7 +231,10 @@ export function TimeGrid({
   const dragged = preview ? shown.find((i) => i.id === preview.id) : undefined;
 
   return (
-    <div className={`grid${days.length === 1 ? ' grid-single-day' : ''}${preview ? ' is-dragging' : ''}`} style={style}>
+    <div
+      className={`grid${days.length === 1 ? ' grid-single-day' : ''}${days.length >= 5 ? ' grid-dense' : ''}${preview ? ' is-dragging' : ''}`}
+      style={style}
+    >
       <div className="grid-head">
         <div className="grid-gutter" />
         {days.map((d) => (
@@ -244,7 +247,9 @@ export function TimeGrid({
 
       {hasStrip && (
         <div className="grid-strip">
-          <div className="grid-gutter strip-label">celý deň</div>
+          <div className="grid-gutter strip-label" title="Celý deň">
+            <span className="strip-label-long">celý deň</span>
+          </div>
           {days.map((d) => (
             <div key={d.toISOString()} className="strip-cell">
               {strip

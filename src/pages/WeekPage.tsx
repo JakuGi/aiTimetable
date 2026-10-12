@@ -75,6 +75,7 @@ export function WeekPage() {
       events: data.events,
       sessions: data.sessions,
       tasks: data.tasks,
+      gigs: data.profile.freelance_enabled ? data.gigs : [],
     });
     const ok = await data.saveSuggestions(result.suggestions);
     setPlanning(false);
@@ -183,7 +184,11 @@ export function WeekPage() {
 
         {narrow && (
           <>
-            <DayStrip anchor={anchor} onPick={(d) => go(d)} onWeek={(dir) => go(addDays(anchor, dir * 7))} />
+            <DayStrip
+              anchor={anchor}
+              onPick={(d) => go(d, view === 'week' ? 'day' : view)}
+              onWeek={(dir) => go(addDays(anchor, dir * 7))}
+            />
             <div className="wk-row wk-row-sub">
               <div className="segmented small" role="radiogroup" aria-label="Zobrazenie">
                 {VIEWS.map((v) => (
@@ -192,8 +197,9 @@ export function WeekPage() {
                   </button>
                 ))}
               </div>
-              <button className="btn btn-ghost btn-small" onClick={() => setSheet(true)}>
-                Spoje a termíny
+              <button className="btn btn-ghost btn-small sheet-btn" onClick={() => setSheet(true)}>
+                <span className="label-long">Spoje a termíny</span>
+                <span className="label-short">Spoje</span>
                 {warnings.length > 0 ? <span className="badge badge-warn">{warnings.length}</span> : deadlines > 0 ? <span className="badge">{deadlines}</span> : null}
               </button>
             </div>

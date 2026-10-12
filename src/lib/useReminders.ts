@@ -51,7 +51,7 @@ function saveFired(s: Set<string>) {
  * Background push on a closed app needs a push service; see README.
  */
 export function useReminders() {
-  const { events, sessions, taskById } = useData();
+  const { events, sessions, taskById, gigs, profile } = useData();
   const notify = useToast();
   const fired = useRef(loadFired());
 
@@ -70,6 +70,22 @@ export function useReminders() {
             title: e.title,
             body: e.all_day ? 'Dnes' : `${fmtTime(e.starts_at)}${e.location ? `, ${e.location}` : ''}`,
           });
+        }
+      }
+
+      // freelance: time to get ready / leave for an event gig
+      if (profile?.freelance_enabled) {
+        for (const g of gigs) {
+          if (g.mode !== 'event' || !g.starts_at || g.status === 'cancelled' || g.status === 'done' || g.status === 'paid') continue;
+          const before = g.prep_minutes + g.travel_minutes;
+          const at = new Date(g.starts_at).getTime() - before * MINUTE;
+          if (now >= at && now - at < GRACE) {
+            due.push({
+              key: `g:${g.id}:${g.starts_at}:${before}`,
+              title: g.title,
+              body: before ? `Čas na ${g.prep_minutes ? 'prípravu' : 'cestu'}, začiatok o ${fmtTime(g.starts_at)}` : `Začína sa o ${fmtTime(g.starts_at)}`,
+            });
+          }
         }
       }
 
@@ -104,5 +120,5 @@ export function useReminders() {
     check();
     const t = setInterval(check, 20_000);
     return () => clearInterval(t);
-  }, [events, sessions, taskById, notify]);
+  }, [events, sessions, taskById, gigs, profile, notify]);
 }

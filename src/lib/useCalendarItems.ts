@@ -4,6 +4,7 @@ import { useData } from './data';
 import { useEditor } from '../editor/Editor';
 import { EVENT_KINDS, LEISURE_COLOR, ROUTINE_KINDS, priorityColor } from './meta';
 import { routineAppliesOn } from './planner';
+import { FREELANCE_CATEGORY, FREELANCE_COLOR, fmtMoney, gigEarnings } from './freelance';
 import { atMinutes, fmtTime, timeToMinutes } from './time';
 import type { GridItem, StripItem } from '../components/TimeGrid';
 import type { CalendarEvent, RoutineBlock } from './types';
@@ -117,6 +118,70 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
             : (start, end) =>
                 data.update('sessions', ses.id, { starts_at: start.toISOString(), ends_at: end.toISOString() }),
       });
+    }
+
+    // freelance gigs: the gig itself, plus travel/preparation before and travel back after
+    if (data.profile?.freelance_enabled) {
+      const color = data.categories.find((c) => c.name === FREELANCE_CATEGORY)?.color ?? FREELANCE_COLOR;
+      for (const g of data.gigs) {
+        if (g.status === 'cancelled') continue;
+        if (g.mode === 'project') {
+          if (!g.deadline || g.status === 'paid') continue;
+          const d = new Date(g.deadline);
+          const day = days.find((x) => isSameDay(x, d));
+          if (day) {
+            strip.push({
+              id: `g-${g.id}`,
+              day,
+              title: `${g.title} (odovzdať do ${fmtTime(d)})`,
+              color,
+              kind: 'deadline',
+              onClick: () => editor.editGig(g),
+            });
+          }
+          continue;
+        }
+        if (!g.starts_at || !g.ends_at) continue;
+        const s = new Date(g.starts_at);
+        const e = new Date(g.ends_at);
+        if (e.getTime() < from || s.getTime() >= to) continue;
+        const before = g.prep_minutes + g.travel_minutes;
+        if (before > 0) {
+          items.push({
+            id: `gp-${g.id}`,
+            title: g.prep_minutes ? (g.travel_minutes ? 'Príprava a cesta' : 'Príprava') : 'Cesta',
+            detail: g.title,
+            start: new Date(s.getTime() - before * 60_000),
+            end: s,
+            color,
+            variant: 'routine',
+            onClick: () => editor.editGig(g),
+          });
+        }
+        if (g.travel_minutes > 0) {
+          items.push({
+            id: `gt-${g.id}`,
+            title: 'Cesta späť',
+            start: e,
+            end: new Date(e.getTime() + g.travel_minutes * 60_000),
+            color,
+            variant: 'routine',
+            onClick: () => editor.editGig(g),
+          });
+        }
+        const pay = gigEarnings(g, data.sessions);
+        items.push({
+          id: `g-${g.id}`,
+          title: g.title,
+          detail: [g.location, pay > 0 ? fmtMoney(pay) : null].filter(Boolean).join(', ') || undefined,
+          start: s,
+          end: e,
+          color,
+          variant: g.status === 'done' || g.status === 'paid' ? 'done' : 'solid',
+          onClick: () => editor.editGig(g),
+          onMove: (start, end) => data.update('gigs', g.id, { starts_at: start.toISOString(), ends_at: end.toISOString() }),
+        });
+      }
     }
 
     for (const t of data.tasks) {

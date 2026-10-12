@@ -17,6 +17,7 @@ import { MonthPage } from './pages/MonthPage';
 import { TasksPage } from './pages/TasksPage';
 import { RoutinePage } from './pages/RoutinePage';
 import { SettingsPage } from './pages/SettingsPage';
+import { FreelancePage } from './pages/FreelancePage';
 import { isConfigured } from './lib/supabase';
 import { Brand } from './components/Brand';
 
@@ -83,6 +84,7 @@ export default function App() {
               <Route path="tasks" element={<TasksPage />} />
               <Route path="routine" element={<RoutinePage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="freelance" element={<FreelancePage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

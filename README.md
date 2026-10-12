@@ -20,6 +20,11 @@ Týždenný rozvrh, úlohy s termínmi a návrhy, kedy čo robiť. Jedna appka p
   - keď sa niečo nezmestí, povie, koľko času chýba.
 - **Drag & drop v rozvrhu**: bloky práce (aj návrhy ceruzkou) a udalosti presúvaš myšou na iný čas alebo deň, spodným okrajom meníš dĺžku; na mobile blok podržíš a potiahneš. Časy sa prichytávajú na 15 minút, prekrytie s iným blokom appka ukáže. Esc ťahanie zruší.
 - **Mobil**: kompaktná hlavička, pás dní na prepínanie (aj swipe do strán), pohľady Deň / 3 dni / Týždeň, spoje a termíny v spodnom paneli, dialógy ako spodné panely, kalendár s bodkami a zoznamom vybraného dňa.
+- **Freelance mód** (zapína sa v Nastaveniach, pribudne záložka Freelance):
+  - **Akcia**: práca na mieste v daný čas (nakladanie, sťahovanie, podujatie) s miestom, časom, cestou a prípravou. V rozvrhu sa ukáže aj blok „Príprava a cesta“ a „Cesta späť“, plánovač tento čas obíde a appka upozorní, keď treba vyraziť.
+  - **Projekt**: práca do termínu (programovanie, grafika). S odhadom hodín sa dá naplánovať do rozvrhu ako úloha.
+  - Odmena za akciu/projekt alebo na hodinu (hodiny z dĺžky akcie, odpracovaných blokov alebo zadané ručne), zoznam výdavkov, čistý zisk.
+  - Mesačný prehľad: zárobok, výdavky, čistý zisk a čo ešte čaká na platbu. Stavy Dohodnuté → Potvrdené → Hotové → Zaplatené.
 - **Kalendár**: udalosti, cesty, pripomienky, celodenné akcie, termíny úloh; mesačný prehľad.
 - **Upozornenia** (keď je appka otvorená): pripomienky a udalosti s upozornením vopred, voliteľne aj začiatok bloku práce.
 - **Synchronizácia v reálnom čase**: zmena na PC sa na mobile prejaví do ~1 s (Supabase Realtime) a naopak.

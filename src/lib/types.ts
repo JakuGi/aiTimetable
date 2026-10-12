@@ -13,6 +13,44 @@ export interface Profile {
   priority_colors: string[];
   class_periods: ClassPeriod[];
   odd_week_anchor: string; // "YYYY-MM-DD", a Monday of an odd week
+  freelance_enabled: boolean;
+  freelance_default_mode: GigMode;
+}
+
+/** event = a gig at a place and time (loading, moving, event work); project = task-based work */
+export type GigMode = 'event' | 'project';
+export type GigStatus = 'planned' | 'confirmed' | 'done' | 'paid' | 'cancelled';
+
+export interface GigExpense {
+  id: string;
+  label: string;
+  amount: number;
+}
+
+export interface Gig {
+  id: string;
+  user_id: string;
+  title: string;
+  mode: GigMode;
+  client: string | null;
+  contact: string | null;
+  status: GigStatus;
+  starts_at: string | null;
+  ends_at: string | null;
+  location: string | null;
+  prep_minutes: number;
+  travel_minutes: number;
+  prep_notes: string | null;
+  deadline: string | null;
+  estimated_minutes: number | null;
+  task_id: string | null;
+  pay_type: 'fixed' | 'hourly';
+  pay_amount: number | string; // numeric comes back as string
+  hours: number | string | null;
+  expenses: GigExpense[];
+  paid_at: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface ClassPeriod {
@@ -121,4 +159,5 @@ export type TableName =
   | 'routine_blocks'
   | 'events'
   | 'sessions'
-  | 'event_templates';
+  | 'event_templates'
+  | 'gigs';

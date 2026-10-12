@@ -6,10 +6,11 @@ import { ColorSwatches } from '../components/ColorSwatches';
 import { useToast } from '../components/Toast';
 import { addDays } from 'date-fns';
 import { DEFAULT_CLASS_PERIODS, DEFAULT_PRIORITY_COLORS, PRIORITY_LABELS } from '../lib/meta';
+import { FREELANCE_CATEGORY, FREELANCE_COLOR, GIG_MODES } from '../lib/freelance';
 import { fmt, fmtDuration, minutesToTime, timeToMinutes, toDateInput, weekParity, weekStart } from '../lib/time';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
 import { notificationsSupported, requestNotifications, getSessionAlerts, setSessionAlerts } from '../lib/useReminders';
-import type { ClassPeriod, Priority } from '../lib/types';
+import type { ClassPeriod, GigMode, Priority } from '../lib/types';
 import { Field, Segmented } from '../editor/fields';
 
 export function SettingsPage() {
@@ -114,6 +115,8 @@ export function SettingsPage() {
         </section>
 
         <SchoolSettings />
+
+        <FreelanceSettings />
 
         <section className="card-section">
           <h2>Kategórie</h2>
@@ -316,6 +319,63 @@ function SchoolSettings() {
           Uložiť zvonenie
         </button>
       </div>
+    </section>
+  );
+}
+
+/** Freelance mode: an extra tab for paid gigs, off unless the user wants it. */
+function FreelanceSettings() {
+  const { profile, update, categories, insert } = useData();
+  const notify = useToast();
+  // flips immediately; the saved value catches up (or rolls it back on error)
+  const [enabled, setEnabled] = useState(profile?.freelance_enabled ?? false);
+  useEffect(() => setEnabled(profile?.freelance_enabled ?? false), [profile?.freelance_enabled]);
+  if (!profile) return null;
+
+  const toggle = async (on: boolean) => {
+    setEnabled(on);
+    if (on && !categories.some((c) => c.name === FREELANCE_CATEGORY)) {
+      await insert('categories', { name: FREELANCE_CATEGORY, color: FREELANCE_COLOR, sort_order: categories.length });
+    }
+    const ok = await update('profiles', profile.id, { freelance_enabled: on });
+    if (!ok) setEnabled(!on);
+    if (ok) {
+      notify(on ? 'Freelance mód zapnutý. Nájdeš ho v novej záložke.' : 'Freelance mód vypnutý. Dáta ostávajú uložené.', 'success');
+    }
+  };
+
+  return (
+    <section className="card-section">
+      <h2>Freelance</h2>
+      <label className="switch-row">
+        <span>
+          <b>Freelance mód</b>
+          <span className="small muted">
+            Záložka na brigády a zákazky: zárobky, výdavky, príprava a cesta. Akcie sa ukážu v rozvrhu a plánovač ich
+            obíde.
+          </span>
+        </span>
+        <input
+          type="checkbox"
+          role="switch"
+          className="switch"
+          checked={enabled}
+          onChange={(e) => toggle(e.target.checked)}
+        />
+      </label>
+      {enabled && (
+        <Field label="Čo robíš najčastejšie" hint={GIG_MODES[profile.freelance_default_mode].hint}>
+          <Segmented
+            label="Predvolený druh"
+            value={profile.freelance_default_mode}
+            onChange={(m: GigMode) => update('profiles', profile.id, { freelance_default_mode: m })}
+            options={[
+              { value: 'event', label: 'Akcie na mieste' },
+              { value: 'project', label: 'Projekty do termínu' },
+            ]}
+          />
+        </Field>
+      )}
     </section>
   );
 }
