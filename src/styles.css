@@ -2126,20 +2126,62 @@ input[type='checkbox'] {
 .gig-mode.mode-project {
   border-bottom: 1.5px dashed currentColor;
 }
-.gig-status {
+.gig-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+/* status as a tappable pill: native select, so phones show their own picker */
+.status-pill {
+  appearance: none;
+  -webkit-appearance: none;
+  width: auto;
+  font: inherit;
   font-size: 12.5px;
-  color: var(--ink-2);
-}
-.status-done .gig-status {
-  color: var(--margin);
   font-weight: 700;
+  padding: 5px 26px 5px 11px;
+  border-radius: 999px;
+  border: 1.5px solid var(--st, var(--line-strong));
+  color: var(--st, var(--ink-2));
+  background-color: color-mix(in srgb, var(--st, var(--ink-2)) 9%, var(--surface));
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    right 13px center,
+    right 8px center;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
 }
-.status-paid .gig-status {
-  color: var(--ok);
-  font-weight: 700;
+.status-pill:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--st, var(--pen)) 25%, transparent);
 }
-.status-cancelled {
-  opacity: 0.55;
+.status-pill option {
+  color: var(--ink);
+  background: var(--surface);
+  font-weight: 500;
+}
+.status-pill[data-status='planned'] {
+  --st: var(--ink-2);
+}
+.status-pill[data-status='confirmed'] {
+  --st: var(--pen);
+}
+.status-pill[data-status='done'] {
+  --st: var(--margin);
+}
+.status-pill[data-status='paid'] {
+  --st: var(--ok);
+}
+.status-pill[data-status='cancelled'] {
+  --st: var(--muted);
+  text-decoration: line-through;
+}
+.status-cancelled .gig-main,
+.status-cancelled .gig-money b {
+  opacity: 0.5;
 }
 .status-cancelled .gig-title {
   text-decoration: line-through;
@@ -2252,8 +2294,22 @@ input[type='checkbox'] {
     justify-content: flex-end;
     gap: 10px;
   }
+  .gig-money {
+    flex-wrap: wrap;
+  }
   .gig-money b {
+    order: 1;
     margin-right: auto;
+  }
+  .gig-actions {
+    order: 2;
+    flex-wrap: nowrap;
+  }
+  .gig-money > span {
+    order: 3;
+    width: 100%;
+    text-align: left;
+    margin-top: -2px;
   }
 }
 

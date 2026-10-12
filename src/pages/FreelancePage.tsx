@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { addMonths, isSameDay, isSameMonth, startOfMonth } from 'date-fns';
 import { useData } from '../lib/data';
 import { useEditor } from '../editor/Editor';
@@ -187,30 +187,57 @@ export function FreelancePage() {
   );
 }
 
+const STATUS_ORDER: Gig['status'][] = ['planned', 'confirmed', 'done', 'paid', 'cancelled'];
+const STATUS_SHORT: Record<Gig['status'], string> = {
+  planned: 'Dohodnuté',
+  confirmed: 'Potvrdené',
+  done: 'Čaká na platbu',
+  paid: 'Zaplatené',
+  cancelled: 'Zrušené',
+};
+const STATUS_TOAST: Record<Gig['status'], string> = {
+  planned: 'Dohodnuté',
+  confirmed: 'Potvrdené',
+  done: 'Hotovo',
+  paid: 'Zaplatené',
+  cancelled: 'Zrušené',
+};
+
 function GigRow({ gig: g }: { gig: Gig }) {
   const { sessions, update, categories, dropSuggestions } = useData();
   const editor = useEditor();
   const notify = useToast();
-  const net = gigNet(g, sessions);
+  // the pill switches at once; the saved row catches up (or rolls it back on error)
+  const [status, setLocal] = useState(g.status);
+  useEffect(() => setLocal(g.status), [g.status]);
+  const net = gigNet({ ...g, status }, sessions);
   const spent = gigExpenses(g);
   const past = g.mode === 'event' ? new Date(g.ends_at!) < new Date() : false;
   const color = categories.find((c) => c.name === FREELANCE_CATEGORY)?.color ?? FREELANCE_COLOR;
 
-  const setStatus = async (status: Gig['status']) => {
+  const setStatus = async (next: Gig['status']) => {
+    if (next === status) return;
+    const prev = status;
+    setLocal(next);
     const ok = await update('gigs', g.id, {
-      status,
-      paid_at: status === 'paid' ? new Date().toISOString() : null,
+      status: next,
+      paid_at: next === 'paid' ? (g.paid_at ?? new Date().toISOString()) : null,
     });
-    // finished project work leaves the planner
-    if (ok && g.task_id) {
-      await update('tasks', g.task_id, { status: 'done', completed_at: new Date().toISOString() });
-      await dropSuggestions(g.task_id);
+    if (!ok) return setLocal(prev);
+    // linked project work follows: finished or cancelled leaves the planner, reopened comes back
+    if (g.task_id) {
+      const closed = next === 'done' || next === 'paid' || next === 'cancelled';
+      await update('tasks', g.task_id, {
+        status: closed ? 'done' : 'todo',
+        completed_at: closed ? new Date().toISOString() : null,
+      });
+      if (closed) await dropSuggestions(g.task_id);
     }
-    if (ok) notify(status === 'paid' ? `Zaplatené: ${g.title}` : `Hotovo: ${g.title}`, 'success');
+    notify(`${STATUS_TOAST[next]}: ${g.title}`, next === 'cancelled' ? 'info' : 'success');
   };
 
   return (
-    <li className={`gig-row status-${g.status}`} style={{ '--c': color } as CSSProperties}>
+    <li className={`gig-row status-${status}`} style={{ '--c': color } as CSSProperties}>
       <button className="gig-main" onClick={() => editor.editGig(g)}>
         <span className="gig-title">{g.title}</span>
         <span className="gig-meta">
@@ -218,28 +245,45 @@ function GigRow({ gig: g }: { gig: Gig }) {
           {g.mode === 'event' && g.starts_at && g.ends_at && (
             <span>
               {fmtTime(g.starts_at)}–{fmtTime(g.ends_at)}
-              {g.prep_minutes + g.travel_minutes > 0 ? `, odchod ${fmtTime(new Date(new Date(g.starts_at).getTime() - (g.prep_minutes + g.travel_minutes) * 60000))}` : ''}
+              {g.prep_minutes + g.travel_minutes > 0
+                ? `, odchod ${fmtTime(new Date(new Date(g.starts_at).getTime() - (g.prep_minutes + g.travel_minutes) * 60000))}`
+                : ''}
             </span>
           )}
           {g.mode === 'project' && g.deadline && <span>odovzdať {relativeDeadline(g.deadline)}</span>}
           {g.location && <span>{g.location}</span>}
           {g.client && <span>{g.client}</span>}
         </span>
-        <span className="gig-status">{GIG_STATUS[g.status]}</span>
       </button>
       <div className="gig-money">
         <b className={net < 0 ? 'is-loss' : undefined}>{fmtMoney(net)}</b>
         {spent > 0 && <span>výdavky {fmtMoney(spent)}</span>}
-        {(g.status === 'planned' || g.status === 'confirmed') && (past || g.mode === 'project') && (
-          <button className="btn btn-ghost btn-small" onClick={() => setStatus('done')}>
-            Hotovo
-          </button>
-        )}
-        {g.status === 'done' && (
-          <button className="btn btn-primary btn-small" onClick={() => setStatus('paid')}>
-            Zaplatené
-          </button>
-        )}
+        <div className="gig-actions">
+          <select
+            className="status-pill"
+            data-status={status}
+            value={status}
+            onChange={(e) => setStatus(e.target.value as Gig['status'])}
+            aria-label={`Stav: ${g.title}`}
+            title={GIG_STATUS[status]}
+          >
+            {STATUS_ORDER.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_SHORT[s]}
+              </option>
+            ))}
+          </select>
+          {(status === 'planned' || status === 'confirmed') && (past || g.mode === 'project') && (
+            <button className="btn btn-ghost btn-small" onClick={() => setStatus('done')}>
+              Hotovo
+            </button>
+          )}
+          {status === 'done' && (
+            <button className="btn btn-primary btn-small" onClick={() => setStatus('paid')}>
+              Zaplatené
+            </button>
+          )}
+        </div>
       </div>
     </li>
   );
