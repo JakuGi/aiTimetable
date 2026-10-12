@@ -60,14 +60,31 @@ describe('dueNotifications', () => {
     remind_minutes_before: 30,
   };
 
-  it('fires an event reminder at start minus lead, once window passes it stops', () => {
+  it('fires an event reminder at start minus lead and stays sendable until the event starts', () => {
     expect(dueNotifications(input(at('14:29'), { events: [event] }))).toHaveLength(0);
     const [n] = dueNotifications(input(at('14:30'), { events: [event] }));
     expect(n).toMatchObject({ kind: 'event', title: 'Zubár', body: '15:00, Poliklinika' });
     expect(n.key).toBe(`e:e1:${event.starts_at}:30`);
-    // still sent if the job was a few minutes late, but not much later
-    expect(dueNotifications(input(at('14:38'), { events: [event] }))).toHaveLength(1);
-    expect(dueNotifications(input(at('14:41'), { events: [event] }))).toHaveLength(0);
+    // late (job hiccup, phone offline, event added late): still sent, saying how soon
+    expect(dueNotifications(input(at('14:41'), { events: [event] }))[0].body).toBe('15:00 (o 19 min), Poliklinika');
+    // once it has started there is nothing to remind
+    expect(dueNotifications(input(at('15:00'), { events: [event] }))).toHaveLength(0);
+  });
+
+  it('announces a moved event again for its new time, right away if needed', () => {
+    // reminder for 15:00 went out at 14:30; at 14:50 the user moves it to 15:10
+    const moved = { ...event, starts_at: at('15:10').toISOString() };
+    const [n] = dueNotifications(input(at('14:50'), { events: [moved] }));
+    expect(n.key).not.toBe(`e:e1:${event.starts_at}:30`); // new key, so the log won't swallow it
+    expect(n.body).toBe('15:10 (o 20 min), Poliklinika');
+  });
+
+  it('a suggestion accepted after its reminder time still gets announced before it starts', () => {
+    const block = { id: 's9', kind: 'task', task_id: 't1', starts_at: at('18:45').toISOString(), ends_at: at('19:35').toISOString(), status: 'planned' };
+    const tasks = [{ id: 't1', title: 'Fyzika príklady', status: 'todo', deadline: null }];
+    const [n] = dueNotifications(input(at('18:41'), { sessions: [block], tasks, profile: { ...profile, session_lead_minutes: 10 } }));
+    expect(n.title).toBe('O 4 min: Fyzika príklady');
+    expect(dueNotifications(input(at('18:46'), { sessions: [block], tasks, profile: { ...profile, session_lead_minutes: 10 } }))).toHaveLength(0);
   });
 
   it('respects the per-type switches', () => {
@@ -111,6 +128,11 @@ describe('dueNotifications', () => {
     const task = { id: 't1', title: 'Referát', status: 'todo', deadline: new Date('2026-10-13T10:00:00+02:00').toISOString() };
     const [n] = dueNotifications(input(at('10:00'), { tasks: [task] }));
     expect(n).toMatchObject({ kind: 'deadline', title: 'Termín o deň: Referát', body: 'Do 13. 10. o 10:00' });
+    // a task added with only 3 hours left says so
+    expect(dueNotifications(input(at('07:00'), { tasks: [task], profile: { ...profile, notify_summary: false } }))).toHaveLength(0);
+    expect(dueNotifications(input(new Date('2026-10-13T07:00:00+02:00'), { tasks: [task], profile: { ...profile, notify_summary: false } }))[0].title).toBe(
+      'Termín o 3 h: Referát',
+    );
   });
 
   it('sends a morning summary once at the chosen time', () => {
@@ -118,6 +140,8 @@ describe('dueNotifications', () => {
       input(at('07:02'), {
         events: [{ ...event, remind_minutes_before: null }],
         tasks: [{ id: 't1', title: 'Referát', status: 'todo', deadline: at('20:00').toISOString() }],
+        // only the summary here; the overdue "a day before" reminder is covered elsewhere
+        profile: { ...profile, notify_deadlines: false },
       }),
     );
     expect(notes).toEqual([

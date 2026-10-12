@@ -5,6 +5,9 @@ import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 import { dueNotifications, WINDOW_MS, type Note, type NotifyProfile } from './due.ts';
 
+// keeps the worker alive for background work after the response is sent
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SECRET_KEY = (() => {
   try {
@@ -134,7 +137,7 @@ async function tick() {
   return { users: userIds.length, sent };
 }
 
-async function test(req: Request) {
+async function test(req: Request, delaySeconds: number) {
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return json({ error: 'Chýba prihlásenie.' }, 401);
   const { data: user, error } = await db.auth.getUser(token);
@@ -146,12 +149,22 @@ async function test(req: Request) {
     .eq('user_id', user.user.id);
   if (!subs?.length) return json({ sent: 0, failed: 0, devices: 0 });
 
-  const r = await deliver(subs, {
-    title: 'Testovacia notifikácia',
-    body: 'Ak toto vidíš, upozornenia z Rozvrhu na tomto zariadení fungujú.',
+  const note = {
+    title: delaySeconds ? 'Oneskorený test' : 'Testovacia notifikácia',
+    body: delaySeconds
+      ? `Prišla ${delaySeconds} s po ťuknutí. Ak ju vidíš pri zavretej appke, upozornenia fungujú aj na pozadí.`
+      : 'Ak toto vidíš, upozornenia z Rozvrhu na tomto zariadení fungujú.',
     url: '/settings',
     tag: `test:${Date.now()}`,
-  });
+  };
+  if (delaySeconds) {
+    // answer now, send later: the user closes the app in the meantime
+    EdgeRuntime.waitUntil(
+      new Promise((r) => setTimeout(r, delaySeconds * 1000)).then(() => deliver(subs, note)),
+    );
+    return json({ scheduled: true, delaySeconds, devices: subs.length });
+  }
+  const r = await deliver(subs, note);
   return json({ ...r, devices: subs.length });
 }
 
@@ -161,7 +174,7 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   try {
     const { cronSecret } = await loadConfig();
-    if (body.test) return await test(req);
+    if (body.test) return await test(req, Math.max(0, Math.min(90, Math.round(Number(body.delaySeconds) || 0))));
     if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) return json({ error: 'Forbidden' }, 403);
     return json(await tick());
   } catch (err) {

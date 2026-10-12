@@ -56,6 +56,14 @@ export function NotificationSettings() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [busy, setBusy] = useState(false);
   const [prefs, setPrefs] = useState<Prefs | null>(profile);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) return setCountdown(null);
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
 
   useEffect(() => setPrefs(profile), [profile]);
 
@@ -107,12 +115,16 @@ export function NotificationSettings() {
     refresh();
   };
 
-  const test = async () => {
+  const test = async (delaySeconds = 0) => {
     setBusy(true);
-    const r = await sendTestPush();
+    const r = await sendTestPush(delaySeconds);
     setBusy(false);
     if ('error' in r) return notify(`Test zlyhal: ${r.error}`, 'error');
     if (r.devices === 0) return notify('Žiadne zariadenie nemá zapnuté upozornenia. Najprv ich zapni.', 'info');
+    if ('scheduled' in r) {
+      setCountdown(r.delaySeconds);
+      return notify(`Notifikácia príde o ${r.delaySeconds} s. Teraz appku úplne zavri (aj zo zoznamu otvorených aplikácií) a počkaj.`, 'success');
+    }
     notify(
       r.failed
         ? `Odoslané na ${r.sent} z ${r.devices} zariadení. Ostatné sa nepodarilo zastihnúť.`
@@ -162,8 +174,15 @@ export function NotificationSettings() {
               Zapnúť upozornenia na tomto zariadení
             </button>
           )}
-          <button className="btn btn-ghost" onClick={test} disabled={busy || devices.length === 0}>
+          <button className="btn btn-ghost" onClick={() => test()} disabled={busy || devices.length === 0}>
             Poslať testovaciu notifikáciu
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => test(45)}
+            disabled={busy || devices.length === 0 || countdown !== null}
+          >
+            {countdown !== null ? `Príde o ${countdown} s, zavri appku` : 'Test o 45 s (so zavretou appkou)'}
           </button>
           {subscribed && (
             <button className="btn btn-danger-ghost" onClick={turnOff} disabled={busy}>
@@ -172,6 +191,26 @@ export function NotificationSettings() {
           )}
         </div>
       </div>
+
+      {devices.length > 0 && (
+        <details className="more push-help">
+          <summary>Okamžitý test príde, ale pri zavretej appke nič?</summary>
+          <ul>
+            <li>
+              <b>Android:</b> Nastavenia telefónu → Aplikácie → Rozvrh (alebo Chrome) → Batéria → <i>Bez obmedzení</i>.
+              Úsporný režim a optimalizácia batérie notifikácie na pozadí zadržia.
+            </li>
+            <li>
+              Tamtiež skontroluj <i>Upozornenia</i>: musia byť povolené pre appku aj pre Chrome a nesmie byť zapnuté
+              Nerušiť.
+            </li>
+            <li>
+              <b>iPhone:</b> appka musí byť otvorená z plochy, nie zo Safari, a v Nastavenia → Upozornenia → Rozvrh povolená.
+            </li>
+            <li>Pripomienky prichádzajú len pre prijaté bloky práce, nie pre návrhy ceruzkou.</li>
+          </ul>
+        </details>
+      )}
 
       {devices.length > 0 && (
         <>

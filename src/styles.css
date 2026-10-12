@@ -2342,6 +2342,18 @@ input[type='checkbox'] {
   background: var(--ok);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent);
 }
+.push-help {
+  margin: 4px 0 10px;
+}
+.push-help ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .devices {
   list-style: none;
   margin: 0 0 8px;

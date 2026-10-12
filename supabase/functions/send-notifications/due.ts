@@ -71,7 +71,7 @@ export interface DueInput {
 }
 
 const MIN = 60_000;
-/** how far back a missed notification is still worth sending (cron hiccups, cold starts) */
+/** minimum time a notification stays sendable (cron hiccups, cold starts, lead 0) */
 export const WINDOW_MS = 10 * MIN;
 
 const toMinutes = (t: string) => {
@@ -109,7 +109,19 @@ export function inQuietHours(now: Date, p: NotifyProfile) {
   return from < to ? m >= from && m < to : m >= from || m < to; // e.g. 22:00–07:00 wraps midnight
 }
 
-const due = (at: number, now: number) => at <= now && now - at < WINDOW_MS;
+/**
+ * A reminder is sendable from its time until the thing itself starts (at least WINDOW_MS).
+ * So a block moved, accepted or created after its reminder time still gets one, right away.
+ * Moving it again changes the key (it contains the start), so the new time is announced too.
+ */
+const sendable = (at: number, start: number, now: number) => at <= now && now < Math.max(start, at + WINDOW_MS);
+
+/** "o 12 min" when a reminder goes out later than planned, nothing when on time. */
+function lateness(at: number, start: number, now: number) {
+  if (now - at < 2 * MIN || now >= start) return '';
+  const left = Math.round((start - now) / MIN);
+  return left < 60 ? ` (o ${left} min)` : ` (o ${Math.floor(left / 60)} h ${left % 60} min)`;
+}
 
 export function dueNotifications(input: DueInput): Note[] {
   const { now, profile: p } = input;
@@ -122,8 +134,9 @@ export function dueNotifications(input: DueInput): Note[] {
     for (const e of input.events) {
       if (e.remind_minutes_before === null) continue;
       const start = new Date(e.starts_at).getTime();
-      if (!due(start - e.remind_minutes_before * MIN, t)) continue;
-      const when = e.all_day ? 'Dnes' : hhmm(new Date(e.starts_at), tz);
+      const at = start - e.remind_minutes_before * MIN;
+      if (!sendable(at, start, t)) continue;
+      const when = e.all_day ? 'Dnes' : hhmm(new Date(e.starts_at), tz) + lateness(at, start, t);
       notes.push({
         key: `e:${e.id}:${e.starts_at}:${e.remind_minutes_before}`,
         kind: 'event',
@@ -138,12 +151,15 @@ export function dueNotifications(input: DueInput): Note[] {
     const titles = new Map(input.tasks.map((x) => [x.id, x.title]));
     for (const s of input.sessions) {
       if (s.status !== 'planned') continue;
-      if (!due(new Date(s.starts_at).getTime() - p.session_lead_minutes * MIN, t)) continue;
+      const start = new Date(s.starts_at).getTime();
+      const at = start - p.session_lead_minutes * MIN;
+      if (!sendable(at, start, t)) continue;
       const what = s.kind === 'leisure' ? 'Voľný čas' : (titles.get(s.task_id ?? '') ?? 'Blok práce');
+      const left = Math.round((start - t) / MIN);
       notes.push({
         key: `s:${s.id}:${s.starts_at}:${p.session_lead_minutes}`,
         kind: 'session',
-        title: p.session_lead_minutes ? `O ${p.session_lead_minutes} min: ${what}` : `Teraz: ${what}`,
+        title: left > 0 ? `O ${left} min: ${what}` : `Teraz: ${what}`,
         body: `${hhmm(new Date(s.starts_at), tz)}–${hhmm(new Date(s.ends_at), tz)}`,
         url: dayUrl(s.starts_at),
       });
@@ -154,8 +170,10 @@ export function dueNotifications(input: DueInput): Note[] {
     for (const g of input.gigs) {
       if (g.mode !== 'event' || !g.starts_at || (g.status !== 'planned' && g.status !== 'confirmed')) continue;
       const before = g.prep_minutes + g.travel_minutes;
-      if (!due(new Date(g.starts_at).getTime() - before * MIN, t)) continue;
-      const start = hhmm(new Date(g.starts_at), tz);
+      const startMs = new Date(g.starts_at).getTime();
+      const at = startMs - before * MIN;
+      if (!sendable(at, startMs, t)) continue;
+      const start = hhmm(new Date(g.starts_at), tz) + lateness(at, startMs, t);
       notes.push({
         key: `g:${g.id}:${g.starts_at}:${before}`,
         kind: 'gig',
@@ -169,12 +187,17 @@ export function dueNotifications(input: DueInput): Note[] {
   if (p.notify_deadlines) {
     for (const x of input.tasks) {
       if (x.status !== 'todo' || !x.deadline) continue;
-      if (!due(new Date(x.deadline).getTime() - p.deadline_lead_hours * 60 * MIN, t)) continue;
+      const end = new Date(x.deadline).getTime();
+      if (!sendable(end - p.deadline_lead_hours * 60 * MIN, end, t)) continue;
       const lead = p.deadline_lead_hours;
+      // say how much time is really left (a task added late doesn't have "a day")
+      const left = (end - t) / MIN;
+      const soon =
+        left >= 36 * 60 ? `${Math.round(left / 1440)} dni` : left >= 18 * 60 ? 'deň' : left >= 60 ? `${Math.round(left / 60)} h` : `${Math.max(1, Math.round(left))} min`;
       notes.push({
         key: `t:${x.id}:${x.deadline}:${lead}`,
         kind: 'deadline',
-        title: `Termín o ${lead === 24 ? 'deň' : lead < 24 ? `${lead} h` : `${Math.round(lead / 24)} dni`}: ${x.title}`,
+        title: `Termín o ${soon}: ${x.title}`,
         body: `Do ${localParts(new Date(x.deadline), tz).date.split('-').reverse().slice(0, 2).join('. ')}. o ${hhmm(new Date(x.deadline), tz)}`,
         url: '/tasks',
       });
@@ -184,7 +207,8 @@ export function dueNotifications(input: DueInput): Note[] {
   if (p.notify_summary) {
     const local = localParts(now, tz);
     const at = toMinutes(p.summary_time);
-    if (local.minutes >= at && local.minutes - at < WINDOW_MS / MIN) {
+    // the whole hour after the chosen time, in case the job or the phone was offline
+    if (local.minutes >= at && local.minutes - at < 60) {
       const today = (iso: string) => localParts(new Date(iso), tz).date === local.date;
       const events = input.events.filter((e) => e.kind !== 'reminder' && today(e.starts_at)).length;
       const work = input.sessions.filter((s) => s.kind === 'task' && s.status === 'planned' && today(s.starts_at)).length;

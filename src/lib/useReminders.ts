@@ -5,7 +5,9 @@ import { fmtTime, MINUTE } from './time';
 import { pushOnThisDevice } from './push';
 
 const FIRED_KEY = 'rozvrh.fired';
-const GRACE = 10 * MINUTE; // still show a reminder that was due up to 10 min ago
+const GRACE = 10 * MINUTE;
+/** same rule as the server: from the reminder time until the thing starts (moved or late items too) */
+const sendable = (at: number, start: number, now: number) => at <= now && now < Math.max(start, at + GRACE);
 
 function loadFired(): Set<string> {
   try {
@@ -42,8 +44,8 @@ export function useReminders() {
       if (profile.notify_events) {
         for (const e of events) {
           if (e.remind_minutes_before === null) continue;
-          const at = new Date(e.starts_at).getTime() - e.remind_minutes_before * MINUTE;
-          if (now >= at && now - at < GRACE) {
+          const start = new Date(e.starts_at).getTime();
+          if (sendable(start - e.remind_minutes_before * MINUTE, start, now)) {
             due.push({
               key: `e:${e.id}:${e.starts_at}:${e.remind_minutes_before}`,
               title: e.title,
@@ -57,8 +59,8 @@ export function useReminders() {
         for (const g of gigs) {
           if (g.mode !== 'event' || !g.starts_at || (g.status !== 'planned' && g.status !== 'confirmed')) continue;
           const before = g.prep_minutes + g.travel_minutes;
-          const at = new Date(g.starts_at).getTime() - before * MINUTE;
-          if (now >= at && now - at < GRACE) {
+          const start = new Date(g.starts_at).getTime();
+          if (sendable(start - before * MINUTE, start, now)) {
             due.push({
               key: `g:${g.id}:${g.starts_at}:${before}`,
               title: before ? `Čas vyraziť: ${g.title}` : g.title,
@@ -71,8 +73,8 @@ export function useReminders() {
       if (profile.notify_sessions) {
         for (const s of sessions) {
           if (s.status !== 'planned') continue;
-          const at = new Date(s.starts_at).getTime() - profile.session_lead_minutes * MINUTE;
-          if (now >= at && now - at < GRACE) {
+          const start = new Date(s.starts_at).getTime();
+          if (sendable(start - profile.session_lead_minutes * MINUTE, start, now)) {
             const title = s.kind === 'leisure' ? 'Voľný čas' : (taskById(s.task_id)?.title ?? 'Blok práce');
             due.push({
               key: `s:${s.id}:${s.starts_at}:${profile.session_lead_minutes}`,

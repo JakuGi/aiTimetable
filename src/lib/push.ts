@@ -112,8 +112,14 @@ export async function disablePush() {
   remember(false);
 }
 
-export async function sendTestPush(): Promise<{ sent: number; failed: number; devices: number } | { error: string }> {
-  const { data, error } = await supabase.functions.invoke('send-notifications', { body: { test: true } });
+export type TestResult =
+  | { sent: number; failed: number; devices: number }
+  | { scheduled: true; delaySeconds: number; devices: number }
+  | { error: string };
+
+/** delaySeconds > 0: the server sends it later, so the app can be closed meanwhile. */
+export async function sendTestPush(delaySeconds = 0): Promise<TestResult> {
+  const { data, error } = await supabase.functions.invoke('send-notifications', { body: { test: true, delaySeconds } });
   if (error) return { error: error.message };
   return data;
 }
