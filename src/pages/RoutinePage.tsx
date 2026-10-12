@@ -15,6 +15,7 @@ import {
   weekStart,
 } from '../lib/time';
 import type { RoutineBlock, RoutineKind } from '../lib/types';
+import { useMediaQuery } from '../lib/useMediaQuery';
 
 function daysLabel(days: number[]) {
   const sorted = [...days].sort();
@@ -29,7 +30,10 @@ export function RoutinePage() {
   const { routine_blocks, profile } = useData();
   const editor = useEditor();
   const routineColor = useRoutineColor();
-  const days = useMemo(() => weekDays(weekStart(new Date())), []);
+  const narrow = useMediaQuery('(max-width: 760px)');
+  const week = useMemo(() => weekDays(weekStart(new Date())), []);
+  const [dayIdx, setDayIdx] = useState(() => isoWeekday(new Date()) - 1);
+  const days = useMemo(() => (narrow ? [week[dayIdx]] : week), [narrow, week, dayIdx]);
   const current = profile ? weekParity(new Date(), profile.odd_week_anchor) : 'odd';
   const [shown, setShown] = useState<'odd' | 'even'>(current);
   const { items } = useCalendarItems(days, { routineOnly: true, parity: shown });
@@ -63,12 +67,20 @@ export function RoutinePage() {
         </div>
       </header>
       <p className="lede">
-        Čo sa opakuje každý týždeň: hodiny, tréningy, brigáda. Hodiny najrýchlejšie zapíšeš v tabuľke cez{' '}
-        <b>Zapísať rozvrh hodín</b>. Autobusy sem nepatria, tie si vkladáš do konkrétneho týždňa v Rozvrhu ako spoje.
-        Plánovač berie všetko mimo týchto blokov (medzi{' '}
-        {profile ? minutesToTime(timeToMinutes(profile.day_start)) : '7:00'} a{' '}
-        {profile ? minutesToTime(timeToMinutes(profile.day_end)) : '22:00'}) ako tvoj voľný čas.
+        Čo sa opakuje každý týždeň. Všetko mimo týchto blokov (
+        {profile ? minutesToTime(timeToMinutes(profile.day_start)) : '7:00'}–
+        {profile ? minutesToTime(timeToMinutes(profile.day_end)) : '22:00'}) je tvoj voľný čas na plánovanie. Autobusy
+        pridávaš v Rozvrhu ako spoje.
       </p>
+      {narrow && (
+        <div className="weekday-picker" role="radiogroup" aria-label="Deň">
+          {WEEKDAY_SHORT.map((d, i) => (
+            <button key={d} role="radio" aria-checked={dayIdx === i} onClick={() => setDayIdx(i)}>
+              {d}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="routine-layout">
         <section className="week-grid">
@@ -77,6 +89,7 @@ export function RoutinePage() {
             items={items}
             generic
             scrollToHour={dayStartHour}
+            onSwipe={narrow ? (dir) => setDayIdx((i) => (i + dir + 7) % 7) : undefined}
             onSlotClick={(start) => {
               const m = start.getHours() * 60 + start.getMinutes();
               editor.editRoutine({

@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type TouchEvent,
+} from 'react';
 import { isSameDay, isToday } from 'date-fns';
-import { atMinutes, fmt, fmtTime, MINUTE } from '../lib/time';
+import { atMinutes, fmt, fmtTime, minutesToTime, MINUTE } from '../lib/time';
 import { textOn } from '../lib/meta';
+import { useGridDrag } from './useGridDrag';
 
 export type GridVariant = 'routine' | 'solid' | 'pencil' | 'done';
 
@@ -16,6 +26,8 @@ export interface GridItem {
   /** small colored dot, e.g. task priority */
   marker?: string;
   onClick?: () => void;
+  /** makes the block draggable and resizable; resolve false to undo the move */
+  onMove?: (start: Date, end: Date) => Promise<boolean> | void;
 }
 
 export interface StripItem {
@@ -37,6 +49,8 @@ interface Props {
   /** show weekday names only (a generic week, not concrete dates) */
   generic?: boolean;
   onSlotClick?: (start: Date) => void;
+  /** horizontal swipe on touch screens: -1 = previous, 1 = next */
+  onSwipe?: (dir: 1 | -1) => void;
 }
 
 export const HOUR_PX = 48;
@@ -102,9 +116,13 @@ export function TimeGrid({
   scrollToHour = 7,
   generic = false,
   onSlotClick,
+  onSwipe,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
+  const columns = useRef<(HTMLDivElement | null)[]>([]);
   const [now, setNow] = useState(() => new Date());
+  // positions shown right after a drop, until the saved data comes back
+  const [pending, setPending] = useState<Record<string, { start: Date; end: Date }>>({});
   const hours = useMemo(() => Array.from({ length: toHour - fromHour }, (_, i) => fromHour + i), [fromHour, toHour]);
 
   useEffect(() => {
@@ -116,9 +134,59 @@ export function TimeGrid({
     if (scroller.current) scroller.current.scrollTop = Math.max(0, (scrollToHour - fromHour - 0.5) * HOUR_PX);
   }, [scrollToHour, fromHour]);
 
+  // drop an optimistic position once the real data agrees with it
+  useEffect(() => {
+    setPending((p) => {
+      const next = { ...p };
+      let changed = false;
+      for (const [id, pos] of Object.entries(p)) {
+        const item = items.find((i) => i.id === id);
+        if (!item || (item.start.getTime() === pos.start.getTime() && item.end.getTime() === pos.end.getTime())) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : p;
+    });
+  }, [items]);
+
+  const shown = useMemo(
+    () => items.map((i) => (pending[i.id] ? { ...i, ...pending[i.id] } : i)),
+    [items, pending],
+  );
+
+  const onDrop = useCallback(
+    (item: GridItem, dayIndex: number, startMin: number, endMin: number) => {
+      const day = days[dayIndex];
+      if (!day || !item.onMove) return;
+      const start = atMinutes(day, startMin);
+      const end = atMinutes(day, endMin);
+      if (start.getTime() === item.start.getTime() && end.getTime() === item.end.getTime()) return;
+      setPending((p) => ({ ...p, [item.id]: { start, end } }));
+      const undo = () =>
+        setPending((p) => {
+          const next = { ...p };
+          delete next[item.id];
+          return next;
+        });
+      Promise.resolve(item.onMove(start, end)).then((ok) => ok === false && undo());
+      setTimeout(undo, 8000); // safety net if the update never echoes back
+    },
+    [days],
+  );
+
+  const { preview, start: startDrag, consumeClickSuppression } = useGridDrag({
+    scroller,
+    columns,
+    fromHour,
+    toHour,
+    hourPx: HOUR_PX,
+    onDrop,
+  });
+
   const perDay = useMemo(
-    () => days.map((d) => layoutDay(d, items, fromHour, toHour)),
-    [days, items, fromHour, toHour],
+    () => days.map((d) => layoutDay(d, shown, fromHour, toHour)),
+    [days, shown, fromHour, toHour],
   );
   const hasStrip = strip.length > 0;
 
@@ -129,12 +197,41 @@ export function TimeGrid({
     onSlotClick(atMinutes(day, minutes));
   };
 
+  // swipe between days on touch screens (ignored while dragging a block)
+  const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0];
+    touch.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
+  };
+  const onTouchEnd = (e: TouchEvent) => {
+    const s = touch.current;
+    touch.current = null;
+    if (!s || !onSwipe || preview) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Date.now() - s.t < 600 && Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) onSwipe(dx < 0 ? 1 : -1);
+  };
+
+  // does the dragged block land on top of something else?
+  const conflict = useMemo(() => {
+    if (!preview) return false;
+    const day = days[preview.dayIndex];
+    if (!day) return false;
+    const s = atMinutes(day, preview.startMin).getTime();
+    const e = atMinutes(day, preview.endMin).getTime();
+    return shown.some(
+      (i) => i.id !== preview.id && isSameDay(i.start, day) && i.start.getTime() < e && i.end.getTime() > s,
+    );
+  }, [preview, days, shown]);
+
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const nowTop = ((nowMinutes - fromHour * 60) / 60) * HOUR_PX;
   const style = { '--days': days.length, '--hour': `${HOUR_PX}px` } as CSSProperties;
+  const dragged = preview ? shown.find((i) => i.id === preview.id) : undefined;
 
   return (
-    <div className="grid" style={style}>
+    <div className={`grid${days.length === 1 ? ' grid-single-day' : ''}${preview ? ' is-dragging' : ''}`} style={style}>
       <div className="grid-head">
         <div className="grid-gutter" />
         {days.map((d) => (
@@ -169,7 +266,7 @@ export function TimeGrid({
         </div>
       )}
 
-      <div className="grid-scroll" ref={scroller}>
+      <div className="grid-scroll" ref={scroller} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="grid-body" style={{ height: hours.length * HOUR_PX }}>
           <div className="grid-gutter hours">
             {hours.map((h) => (
@@ -183,6 +280,9 @@ export function TimeGrid({
             return (
               <div
                 key={d.toISOString()}
+                ref={(el) => {
+                  columns.current[di] = el;
+                }}
                 className={`grid-col${today ? ' is-today' : ''}`}
                 onClick={(e) => handleColumnClick(d, e)}
               >
@@ -190,7 +290,7 @@ export function TimeGrid({
                   <button
                     type="button"
                     key={`${p.id}-${di}`}
-                    className={`block block-${p.variant}`}
+                    className={`block block-${p.variant}${p.onMove ? ' is-movable' : ''}${preview?.id === p.id ? ' is-source' : ''}`}
                     style={
                       {
                         '--c': p.color,
@@ -201,8 +301,13 @@ export function TimeGrid({
                         width: `calc(${100 / p.cols}% - 4px)`,
                       } as CSSProperties
                     }
-                    onClick={p.onClick}
-                    title={`${p.title}, ${fmtTime(p.start)}–${fmtTime(p.end)}`}
+                    onPointerDown={p.onMove ? (e) => startDrag(e, p) : undefined}
+                    onContextMenu={p.onMove ? (e) => e.preventDefault() : undefined}
+                    onClick={() => {
+                      if (consumeClickSuppression()) return;
+                      p.onClick?.();
+                    }}
+                    title={`${p.title}, ${fmtTime(p.start)}–${fmtTime(p.end)}${p.onMove ? '. Ťahaj na presun, spodný okraj mení dĺžku.' : ''}`}
                   >
                     <span className="block-title">
                       {p.marker && <i className="marker" style={{ background: p.marker }} />}
@@ -214,8 +319,33 @@ export function TimeGrid({
                       </span>
                     )}
                     {p.detail && p.height >= 56 && <span className="block-detail">{p.detail}</span>}
+                    {p.onMove && <span className="resize-handle" data-resize aria-hidden="true" />}
                   </button>
                 ))}
+
+                {preview && dragged && preview.dayIndex === di && (
+                  <div
+                    className={`block block-${dragged.variant} block-ghost${conflict ? ' is-conflict' : ''}`}
+                    style={
+                      {
+                        '--c': dragged.color,
+                        '--fg': textOn(dragged.color),
+                        top: ((preview.startMin - fromHour * 60) / 60) * HOUR_PX,
+                        height: Math.max(((preview.endMin - preview.startMin) / 60) * HOUR_PX, 18),
+                        left: 2,
+                        right: 2,
+                      } as CSSProperties
+                    }
+                    aria-hidden="true"
+                  >
+                    <span className="block-title">{dragged.title}</span>
+                    <span className="block-time">
+                      {minutesToTime(preview.startMin)}–{minutesToTime(preview.endMin)}
+                      {conflict ? ', prekrýva sa' : ''}
+                    </span>
+                  </div>
+                )}
+
                 {today && nowTop >= 0 && nowTop <= hours.length * HOUR_PX && (
                   <div className="now-line" style={{ top: nowTop }} aria-label={`Teraz ${fmtTime(now)}`} />
                 )}

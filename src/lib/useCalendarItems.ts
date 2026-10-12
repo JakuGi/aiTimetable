@@ -87,6 +87,8 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         color,
         variant: 'solid',
         onClick: () => editor.editEvent(e),
+        onMove: (start, end) =>
+          data.update('events', e.id, { starts_at: start.toISOString(), ends_at: end.toISOString() }),
       });
     }
 
@@ -108,6 +110,12 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         variant: ses.status === 'suggested' ? 'pencil' : ses.status === 'done' ? 'done' : 'solid',
         marker: task ? priorityColor(data.profile?.priority_colors, task.priority) : undefined,
         onClick: () => editor.editSession(ses),
+        // pencil and planned blocks can be rearranged; finished work stays where it happened
+        onMove:
+          ses.status === 'done'
+            ? undefined
+            : (start, end) =>
+                data.update('sessions', ses.id, { starts_at: start.toISOString(), ends_at: end.toISOString() }),
       });
     }
 

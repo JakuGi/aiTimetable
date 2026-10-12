@@ -18,6 +18,8 @@ Týždenný rozvrh, úlohy s termínmi a návrhy, kedy čo robiť. Jedna appka p
   - denný limit práce, prestávka po každom bloku, najviac 2 bloky jednej úlohy za deň (ak termín nehorí),
   - každý večer drží voľný čas, ktorý obetuje len vtedy, keď by sa termín inak nestihol,
   - keď sa niečo nezmestí, povie, koľko času chýba.
+- **Drag & drop v rozvrhu**: bloky práce (aj návrhy ceruzkou) a udalosti presúvaš myšou na iný čas alebo deň, spodným okrajom meníš dĺžku; na mobile blok podržíš a potiahneš. Časy sa prichytávajú na 15 minút, prekrytie s iným blokom appka ukáže. Esc ťahanie zruší.
+- **Mobil**: kompaktná hlavička, pás dní na prepínanie (aj swipe do strán), pohľady Deň / 3 dni / Týždeň, spoje a termíny v spodnom paneli, dialógy ako spodné panely, kalendár s bodkami a zoznamom vybraného dňa.
 - **Kalendár**: udalosti, cesty, pripomienky, celodenné akcie, termíny úloh; mesačný prehľad.
 - **Upozornenia** (keď je appka otvorená): pripomienky a udalosti s upozornením vopred, voliteľne aj začiatok bloku práce.
 - **Synchronizácia v reálnom čase**: zmena na PC sa na mobile prejaví do ~1 s (Supabase Realtime) a naopak.
