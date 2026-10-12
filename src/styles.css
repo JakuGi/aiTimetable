@@ -1404,6 +1404,223 @@ input[type='checkbox'] {
   margin-bottom: 14px;
 }
 
+/* ------------------------------------------------------------------ fast entry */
+
+.modal-wide {
+  width: min(860px, calc(100vw - 24px));
+}
+.quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+.more {
+  margin: 4px 0 14px;
+}
+.more summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 12px;
+}
+
+/* bell periods as compact chips */
+.periods {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 4px;
+}
+.periods button {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 0;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  line-height: 1.2;
+}
+.periods button b {
+  font-size: 14px;
+  color: var(--ink);
+}
+.periods button span {
+  font-size: 11px;
+}
+.periods button[aria-pressed='true'] {
+  background: var(--pen);
+  border-color: var(--pen);
+  color: var(--pen-ink);
+}
+.periods button[aria-pressed='true'] b {
+  color: var(--pen-ink);
+}
+
+/* the timetable you'd copy from the school board */
+.class-grid-wrap {
+  overflow-x: auto;
+  margin: 4px 0 10px;
+}
+.class-grid {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+.class-grid th {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  padding: 6px;
+  text-align: left;
+}
+.class-grid thead th {
+  border-bottom: 1px solid var(--line-strong);
+}
+.class-grid tbody th {
+  white-space: nowrap;
+  width: 92px;
+}
+.class-grid tbody th b {
+  color: var(--ink);
+  margin-right: 6px;
+}
+.class-grid tbody th span {
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.class-grid td {
+  padding: 2px;
+  border: 1px solid var(--line);
+}
+.class-grid td input {
+  border: 0;
+  border-radius: 3px;
+  padding: 7px 8px;
+  font-size: 14px;
+  background: transparent;
+}
+.class-grid td input:not(:placeholder-shown),
+.class-grid td input:focus {
+  background: color-mix(in srgb, var(--pen) 9%, var(--surface));
+}
+.class-grid td input:focus {
+  box-shadow: inset 0 0 0 2px var(--pen);
+}
+
+/* saved connections */
+.templates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.template-btn {
+  font: inherit;
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 10px;
+  align-items: baseline;
+  text-align: left;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--c);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.template-btn:hover {
+  border-color: var(--line-strong);
+  border-left-color: var(--c);
+}
+.template-time {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  grid-row: span 2;
+}
+.template-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.template-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+.place-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.place-days button {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.place-days button b {
+  font-size: 16px;
+  color: var(--ink);
+}
+.place-days button.is-past {
+  opacity: 0.6;
+}
+.place-days button[aria-pressed='true'] {
+  background: var(--pen);
+  border-color: var(--pen);
+  color: var(--pen-ink);
+}
+.place-days button[aria-pressed='true'] b {
+  color: var(--pen-ink);
+}
+
+.parity-tag {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink-2);
+  color: var(--ink-2);
+}
+.parity-tag.parity-even {
+  border-style: dashed;
+}
+
+.bells {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bells li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bells li b {
+  width: 22px;
+}
+.bells input {
+  width: 110px;
+}
+
 /* ------------------------------------------------------------------ responsive */
 
 @media (max-width: 1100px) {

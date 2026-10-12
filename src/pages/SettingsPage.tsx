@@ -4,11 +4,12 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
 import { ColorSwatches } from '../components/ColorSwatches';
 import { useToast } from '../components/Toast';
-import { DEFAULT_PRIORITY_COLORS, PRIORITY_LABELS } from '../lib/meta';
-import { fmtDuration } from '../lib/time';
+import { addDays } from 'date-fns';
+import { DEFAULT_CLASS_PERIODS, DEFAULT_PRIORITY_COLORS, PRIORITY_LABELS } from '../lib/meta';
+import { fmt, fmtDuration, minutesToTime, timeToMinutes, toDateInput, weekParity, weekStart } from '../lib/time';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
 import { notificationsSupported, requestNotifications, getSessionAlerts, setSessionAlerts } from '../lib/useReminders';
-import type { Priority } from '../lib/types';
+import type { ClassPeriod, Priority } from '../lib/types';
 import { Field, Segmented } from '../editor/fields';
 
 export function SettingsPage() {
@@ -111,6 +112,8 @@ export function SettingsPage() {
             </button>
           </div>
         </section>
+
+        <SchoolSettings />
 
         <section className="card-section">
           <h2>Kategórie</h2>
@@ -225,5 +228,94 @@ function CategoryRow({ id }: { id: string }) {
         Odstrániť
       </button>
     </div>
+  );
+}
+
+/** Bell schedule and odd/even weeks: the two things that make entering classes fast. */
+function SchoolSettings() {
+  const { profile, update } = useData();
+  const notify = useToast();
+  const [periods, setPeriods] = useState<ClassPeriod[]>(profile?.class_periods ?? DEFAULT_CLASS_PERIODS);
+  useEffect(() => setPeriods(profile?.class_periods ?? DEFAULT_CLASS_PERIODS), [profile?.class_periods]);
+  if (!profile) return null;
+
+  const thisMonday = weekStart(new Date());
+  const parity = weekParity(new Date(), profile.odd_week_anchor);
+
+  const setParity = async (p: 'odd' | 'even') => {
+    if (p === parity) return;
+    const anchor = p === 'odd' ? thisMonday : addDays(thisMonday, -7);
+    if (await update('profiles', profile.id, { odd_week_anchor: toDateInput(anchor) })) {
+      notify(`Tento týždeň je teraz ${p === 'odd' ? 'nepárny' : 'párny'}.`, 'success');
+    }
+  };
+
+  const setPeriod = (i: number, field: keyof ClassPeriod, v: string) =>
+    setPeriods((ps) => ps.map((x, j) => (j === i ? { ...x, [field]: v } : x)));
+
+  const addPeriod = () => {
+    const last = periods[periods.length - 1];
+    const start = last ? Math.min(timeToMinutes(last.end) + 10, 23 * 60) : 8 * 60;
+    setPeriods([...periods, { start: minutesToTime(start), end: minutesToTime(Math.min(start + 45, 23 * 60 + 59)) }]);
+  };
+
+  const savePeriods = async () => {
+    for (let i = 0; i < periods.length; i++) {
+      const p = periods[i];
+      if (timeToMinutes(p.end) <= timeToMinutes(p.start)) return notify(`${i + 1}. hodina: koniec musí byť po začiatku.`, 'error');
+      if (i > 0 && timeToMinutes(p.start) < timeToMinutes(periods[i - 1].end))
+        return notify(`${i + 1}. hodina začína skôr, než skončí ${i}.`, 'error');
+    }
+    if (await update('profiles', profile.id, { class_periods: periods })) notify('Zvonenie uložené.', 'success');
+  };
+
+  return (
+    <section className="card-section">
+      <h2>Škola</h2>
+      <Field label={`Tento týždeň (${fmt(thisMonday, 'd. M.')} – ${fmt(addDays(thisMonday, 6), 'd. M.')}) je`}>
+        <Segmented
+          label="Párnosť tohto týždňa"
+          value={parity}
+          onChange={setParity}
+          options={[
+            { value: 'odd', label: 'Nepárny' },
+            { value: 'even', label: 'Párny' },
+          ]}
+        />
+      </Field>
+      <p className="small muted">Ďalšie týždne sa striedajú samé, aj cez nový rok.</p>
+
+      <h3>Zvonenie</h3>
+      <p className="small muted">Podľa týchto časov sa vypĺňa tabuľka rozvrhu hodín.</p>
+      <ol className="bells">
+        {periods.map((p, i) => (
+          <li key={i}>
+            <b>{i + 1}.</b>
+            <input type="time" value={p.start} onChange={(e) => setPeriod(i, 'start', e.target.value)} aria-label={`${i + 1}. hodina od`} />
+            <span>–</span>
+            <input type="time" value={p.end} onChange={(e) => setPeriod(i, 'end', e.target.value)} aria-label={`${i + 1}. hodina do`} />
+            <button
+              type="button"
+              className="btn btn-danger-ghost"
+              onClick={() => setPeriods(periods.filter((_, j) => j !== i))}
+              aria-label={`Odstrániť ${i + 1}. hodinu`}
+            >
+              Odstrániť
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div className="actions">
+        <button className="btn btn-ghost" onClick={addPeriod} disabled={periods.length >= 16}>
+          Pridať hodinu
+        </button>
+        <button className="btn btn-ghost" onClick={() => setPeriods(DEFAULT_CLASS_PERIODS)}>
+          Predvolené zvonenie
+        </button>
+        <button className="btn btn-primary" onClick={savePeriods}>
+          Uložiť zvonenie
+        </button>
+      </div>
+    </section>
   );
 }

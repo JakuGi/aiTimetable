@@ -5,10 +5,11 @@ interface Props {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  wide?: boolean;
 }
 
 /** Native <dialog>: focus trap, Esc to close and backdrop for free. */
-export function Modal({ title, onClose, children, footer }: Props) {
+export function Modal({ title, onClose, children, footer, wide = false }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -19,7 +20,7 @@ export function Modal({ title, onClose, children, footer }: Props) {
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={wide ? 'modal modal-wide' : 'modal'}
       onCancel={(e) => {
         e.preventDefault();
         onClose();

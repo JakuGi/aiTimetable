@@ -82,6 +82,16 @@ export function relativeDeadline(deadline: string, now = new Date()): string {
   return `o ${diffDays} dní, ${fmt(d, 'd. M.')}`;
 }
 
+/**
+ * Odd or even week, counted from a Monday the user marked as odd.
+ * Counting from an anchor (not ISO week numbers) keeps the alternation intact across new year.
+ */
+export function weekParity(day: Date, oddAnchor: string): 'odd' | 'even' {
+  const anchor = weekStart(parseInput(oddAnchor));
+  const weeks = Math.round((weekStart(day).getTime() - anchor.getTime()) / (7 * DAY));
+  return ((weeks % 2) + 2) % 2 === 0 ? 'odd' : 'even';
+}
+
 /** Parses <input type="date"> or "datetime-local" values as local time. */
 export function parseInput(v: string): Date {
   return new Date(v.length === 10 ? `${v}T00:00` : v);

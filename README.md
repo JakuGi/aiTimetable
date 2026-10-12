@@ -5,7 +5,12 @@ Týždenný rozvrh, úlohy s termínmi a návrhy, kedy čo robiť. Jedna appka p
 ## Čo appka vie
 
 - **Prihlásenie a registrácia** s overením e-mailu, zabudnuté heslo, odhlásenie. Odkaz z e-mailu funguje aj na inom zariadení.
-- **Môj týždeň**: pravidelné bloky (vyučovanie, bus do školy a domov, tréningy, brigáda, voľný čas) s dňami, časom, spojom a platnosťou (napr. na semester).
+- **Môj týždeň**: pravidelné bloky (vyučovanie, tréningy, brigáda, voľný čas) s dňami, časom a platnosťou (napr. na polrok).
+  - **Rozvrh hodín ako tabuľka**: hodiny × dni, píšeš len predmety. Susedné rovnaké hodiny sa spoja do dvojhodinovky, rovnaký predmet v rovnakom čase v rôzne dni sa uloží ako jeden blok. Enter skočí o hodinu nižšie, predmety sa našepkávajú.
+  - **Zvonenie**: časy hodín nastavíš raz v Nastaveniach, potom stačí kliknúť „3.–4. hodina“.
+  - **Párne a nepárne týždne**: každý blok môže platiť každý týždeň, len v nepárnom alebo len v párnom. Ktorý týždeň je ktorý, nastavíš jedným klikom v Nastaveniach a ďalej sa striedajú samé.
+  - „Uložiť a pridať ďalší“ nechá dni aj párnosť a posunie sa na ďalšiu hodinu.
+- **Spoje (autobusy, vlaky)**: nie sú v pravidelnom týždni. Uložíš si ich raz a v Rozvrhu ich vkladáš len do dní konkrétneho týždňa, keď ich potrebuješ. „Skopírovať cesty z minulého týždňa“ prenesie všetky cesty jedným klikom.
 - **Úlohy**: čo treba urobiť, dôležitosť (4 úrovne s vlastnými farbami), odhad času, termín, kategória, priebeh.
 - **Plánovač** (tlačidlo *Navrhnúť plán*): nájde voľný čas medzi rozvrhom a udalosťami a rozloží do neho prácu na úlohách. Návrh je zakreslený „ceruzkou“, každý blok môžeš prijať, posunúť alebo zahodiť. Pravidlá:
   - nikdy neprekrýva rozvrh, udalosti ani prijaté bloky; plánuje len medzi začiatkom a koncom dňa,
@@ -46,6 +51,21 @@ Otvor appku v Chrome alebo Edge a v adresnom riadku klikni na ikonu **Inštalova
    - *Redirect URLs*: pridaj `http://localhost:3000/**` a produkčnú doménu s `/**`.
 2. **E-maily (dôležité)**: zabudovaný e-mailový server Supabase posiela overovacie e-maily **len členom tímu organizácie** a len pár za hodinu. Na testovanie so svojím e-mailom to stačí. Pre ostatných používateľov nastav vlastné SMTP v **Authentication → Emails → SMTP Settings** (napr. Resend, Brevo, SendGrid). S vlastným SMTP sa dajú aj šablóny e-mailov preložiť do slovenčiny.
 3. Overenie e-mailu (*Confirm email*) je zapnuté predvolene, netreba nič meniť.
+
+### Vlastné e-maily (overenie, nové heslo…)
+
+Šablóny v štýle appky (slovensky, bez obrázkov, fungujú v Gmaili, Outlooku aj na mobile) sú v `supabase/templates/`. Generuje ich `scripts/email-templates.mjs`, takže meníš len tento jeden súbor a spustíš `npm run emails`.
+
+Free projekt Supabase so zabudovaným e-mailovým serverom šablóny upraviť **nedovolí**, najprv treba vlastné SMTP:
+
+1. Založ si účet u poskytovateľa SMTP:
+   - **Brevo** (300 e-mailov denne zadarmo) overí aj samotnú adresu odosielateľa, nepotrebuješ vlastnú doménu,
+   - **Resend** alebo **Postmark** majú lepšiu doručiteľnosť, ale chcú vlastnú doménu.
+2. Vytvor si prístupový token Supabase: https://supabase.com/dashboard/account/tokens
+3. Do `.env.local` (nie je v gite) daj `SUPABASE_ACCESS_TOKEN` a `SMTP_*` hodnoty podľa `.env.example`.
+4. Spusti `npm run emails:apply`. Nahrá SMTP nastavenia, predmety aj šablóny naraz.
+
+Ručne to ide aj v dashboarde: *Authentication → Emails* (SMTP Settings a potom Templates, obsah súborov skopíruj dnu).
 
 ## Architektúra
 

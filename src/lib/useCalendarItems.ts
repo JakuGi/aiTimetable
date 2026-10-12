@@ -19,7 +19,7 @@ export function useEventColor() {
 }
 
 /** Everything that happens on the given days, shaped for <TimeGrid>. */
-export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean } = {}) {
+export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; parity?: 'odd' | 'even' } = {}) {
   const data = useData();
   const editor = useEditor();
   const routineColor = useRoutineColor();
@@ -31,15 +31,22 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean } =
     if (!days.length) return { items, strip };
     const from = startOfDay(days[0]).getTime();
     const to = addDays(startOfDay(days[days.length - 1]), 1).getTime();
+    const anchor = data.profile?.odd_week_anchor ?? '2024-01-01';
 
     for (const day of days) {
       for (const r of data.routine_blocks) {
-        if (!opts.routineOnly && !routineAppliesOn(r, day)) continue;
-        if (opts.routineOnly && !r.weekdays.includes(((day.getDay() + 6) % 7) + 1)) continue;
+        if (!opts.routineOnly && !routineAppliesOn(r, day, anchor)) continue;
+        if (opts.routineOnly) {
+          if (!r.weekdays.includes(((day.getDay() + 6) % 7) + 1)) continue;
+          if (opts.parity && r.week_parity !== 'all' && r.week_parity !== opts.parity) continue;
+        }
         items.push({
           id: `r-${r.id}-${day.getTime()}`,
           title: r.title,
-          detail: r.location ?? r.notes ?? undefined,
+          detail:
+            [r.week_parity === 'odd' ? 'nepárny' : r.week_parity === 'even' ? 'párny' : null, r.location ?? r.notes]
+              .filter(Boolean)
+              .join(', ') || undefined,
           start: atMinutes(day, timeToMinutes(r.start_time)),
           end: atMinutes(day, timeToMinutes(r.end_time)),
           color: routineColor(r),
@@ -120,5 +127,5 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean } =
     }
 
     return { items, strip };
-  }, [days, data, editor, routineColor, eventColor, opts.routineOnly]);
+  }, [days, data, editor, routineColor, eventColor, opts.routineOnly, opts.parity]);
 }

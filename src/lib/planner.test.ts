@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { plan, subtract, type PlannerProfile } from './planner';
+import { weekParity } from './time';
 import type { CalendarEvent, RoutineBlock, Session, Task } from './types';
 
 const profile: PlannerProfile = {
@@ -10,6 +11,7 @@ const profile: PlannerProfile = {
   max_focus_minutes_per_day: 180,
   leisure_minutes_per_day: 60,
   planning_horizon_days: 7,
+  odd_week_anchor: '2026-10-12', // the test week is odd
 };
 
 // Monday 12 Oct 2026, 07:00 local time
@@ -47,6 +49,7 @@ function routine(over: Partial<RoutineBlock>): RoutineBlock {
     color: null,
     valid_from: null,
     valid_until: null,
+    week_parity: 'all',
     ...over,
   };
 }
@@ -63,7 +66,32 @@ describe('subtract', () => {
   });
 });
 
+describe('weekParity', () => {
+  it('alternates from the anchor, also across new year', () => {
+    expect(weekParity(new Date(2026, 9, 14), '2026-10-12')).toBe('odd');
+    expect(weekParity(new Date(2026, 9, 19), '2026-10-12')).toBe('even');
+    expect(weekParity(new Date(2026, 9, 5), '2026-10-12')).toBe('even');
+    // 2026 has 53 ISO weeks; anchor counting must not break on 4 Jan 2027
+    expect(weekParity(new Date(2026, 11, 28), '2026-10-12')).toBe('even');
+    expect(weekParity(new Date(2027, 0, 4), '2026-10-12')).toBe('odd');
+  });
+});
+
 describe('plan', () => {
+  it('uses odd/even week blocks only in their weeks', () => {
+    const evenOnly = routine({ id: 'lab', week_parity: 'even', start_time: '08:00:00', end_time: '20:00:00' });
+    const { suggestions } = plan({
+      now,
+      profile: { ...profile, planning_horizon_days: 14, leisure_minutes_per_day: 0 },
+      routine: [evenOnly],
+      events: [],
+      sessions: [],
+      tasks: [task({ estimated_minutes: 60 })],
+    });
+    // the odd test week is free, so work lands on Monday 12 Oct
+    expect(suggestions[0].start.getDate()).toBe(12);
+  });
+
   it('never overlaps routine blocks and respects day bounds', () => {
     const r = routine({});
     const { suggestions } = plan({
@@ -128,7 +156,7 @@ describe('plan', () => {
       profile,
       routine: [
         routine({ id: 'school', end_time: '13:35:00' }),
-        routine({ id: 'bus', kind: 'commute', start_time: '13:50:00', end_time: '14:25:00' }),
+        routine({ id: 'bus', kind: 'other', start_time: '13:50:00', end_time: '14:25:00' }),
       ],
       events: [],
       sessions: [],

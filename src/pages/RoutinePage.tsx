@@ -1,11 +1,20 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { TimeGrid } from '../components/TimeGrid';
 import { useData } from '../lib/data';
 import { useEditor } from '../editor/Editor';
 import { useCalendarItems, useRoutineColor } from '../lib/useCalendarItems';
 import { ROUTINE_KINDS } from '../lib/meta';
-import { WEEKDAY_SHORT, isoWeekday, timeToMinutes, weekDays, weekStart, minutesToTime, fmt } from '../lib/time';
-import type { RoutineKind } from '../lib/types';
+import {
+  WEEKDAY_SHORT,
+  fmt,
+  isoWeekday,
+  minutesToTime,
+  timeToMinutes,
+  weekDays,
+  weekParity,
+  weekStart,
+} from '../lib/time';
+import type { RoutineBlock, RoutineKind } from '../lib/types';
 
 function daysLabel(days: number[]) {
   const sorted = [...days].sort();
@@ -14,12 +23,16 @@ function daysLabel(days: number[]) {
   return sorted.map((d) => WEEKDAY_SHORT[d - 1]).join(', ');
 }
 
+const parityNote = (b: RoutineBlock) => (b.week_parity === 'odd' ? ', nepárny' : b.week_parity === 'even' ? ', párny' : '');
+
 export function RoutinePage() {
   const { routine_blocks, profile } = useData();
   const editor = useEditor();
   const routineColor = useRoutineColor();
   const days = useMemo(() => weekDays(weekStart(new Date())), []);
-  const { items } = useCalendarItems(days, { routineOnly: true });
+  const current = profile ? weekParity(new Date(), profile.odd_week_anchor) : 'odd';
+  const [shown, setShown] = useState<'odd' | 'even'>(current);
+  const { items } = useCalendarItems(days, { routineOnly: true, parity: shown });
   const dayStartHour = profile ? Math.floor(timeToMinutes(profile.day_start) / 60) : 7;
 
   const grouped = (Object.keys(ROUTINE_KINDS) as RoutineKind[])
@@ -31,17 +44,30 @@ export function RoutinePage() {
       <header className="toolbar">
         <div className="toolbar-nav">
           <h1 className="toolbar-title">Môj týždeň</h1>
+          <div className="segmented small" role="radiogroup" aria-label="Zobrazený týždeň">
+            {(['odd', 'even'] as const).map((p) => (
+              <button key={p} role="radio" aria-checked={shown === p} onClick={() => setShown(p)}>
+                {p === 'odd' ? 'Nepárny' : 'Párny'}
+                {p === current ? ' (teraz)' : ''}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="toolbar-actions">
-          <button className="btn btn-primary" onClick={() => editor.editRoutine({})}>
-            Pridať pravidelný blok
+          <button className="btn btn-ghost" onClick={() => editor.editRoutine({})}>
+            Pridať blok
+          </button>
+          <button className="btn btn-primary" onClick={() => editor.editClassGrid('all')}>
+            Zapísať rozvrh hodín
           </button>
         </div>
       </header>
       <p className="lede">
-        Hodiny v škole, cesty autobusom, tréningy, brigáda. Čo sa opakuje každý týždeň, zapíš sem raz. Všetko mimo týchto
-        blokov (medzi {profile ? minutesToTime(timeToMinutes(profile.day_start)) : '7:00'} a{' '}
-        {profile ? minutesToTime(timeToMinutes(profile.day_end)) : '22:00'}) berie plánovač ako tvoj voľný čas.
+        Čo sa opakuje každý týždeň: hodiny, tréningy, brigáda. Hodiny najrýchlejšie zapíšeš v tabuľke cez{' '}
+        <b>Zapísať rozvrh hodín</b>. Autobusy sem nepatria, tie si vkladáš do konkrétneho týždňa v Rozvrhu ako spoje.
+        Plánovač berie všetko mimo týchto blokov (medzi{' '}
+        {profile ? minutesToTime(timeToMinutes(profile.day_start)) : '7:00'} a{' '}
+        {profile ? minutesToTime(timeToMinutes(profile.day_end)) : '22:00'}) ako tvoj voľný čas.
       </p>
 
       <div className="routine-layout">
@@ -65,12 +91,27 @@ export function RoutinePage() {
         <aside className="side-panel">
           {grouped.length === 0 && (
             <div className="empty">
-              <p>Zatiaľ prázdne. Klikni do mriežky na čas, kedy máš napríklad prvú hodinu, alebo pridaj blok tlačidlom hore.</p>
+              <p>
+                Zatiaľ prázdne. Začni tlačidlom <b>Zapísať rozvrh hodín</b>, vyplníš ho ako tabuľku v škole.
+              </p>
             </div>
           )}
           {grouped.map((g) => (
             <section key={g.kind}>
               <h2>{ROUTINE_KINDS[g.kind].label}</h2>
+              {g.kind === 'class' && (
+                <div className="quick-row">
+                  <button className="link-btn" onClick={() => editor.editClassGrid('all')}>
+                    Upraviť v tabuľke
+                  </button>
+                  <button className="link-btn" onClick={() => editor.editClassGrid('odd')}>
+                    len nepárny
+                  </button>
+                  <button className="link-btn" onClick={() => editor.editClassGrid('even')}>
+                    len párny
+                  </button>
+                </div>
+              )}
               <ul className="routine-list">
                 {g.blocks.map((b) => (
                   <li key={b.id}>
@@ -82,6 +123,7 @@ export function RoutinePage() {
                       <span className="routine-title">{b.title}</span>
                       <span className="routine-meta">
                         {daysLabel(b.weekdays)}, {b.start_time.slice(0, 5)}–{b.end_time.slice(0, 5)}
+                        {parityNote(b)}
                         {b.location ? `, ${b.location}` : ''}
                       </span>
                       {(b.valid_from || b.valid_until) && (

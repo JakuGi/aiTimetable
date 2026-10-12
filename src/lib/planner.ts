@@ -1,6 +1,6 @@
 import { addDays, startOfDay } from 'date-fns';
 import type { CalendarEvent, Profile, RoutineBlock, Session, Task } from './types';
-import { DAY, MINUTE, atMinutes, isoWeekday, timeToMinutes, toDateInput } from './time';
+import { DAY, MINUTE, atMinutes, isoWeekday, timeToMinutes, toDateInput, weekParity } from './time';
 
 /**
  * Planner: turns the regular week, one-off events and already planned sessions
@@ -25,6 +25,7 @@ export type PlannerProfile = Pick<
   | 'max_focus_minutes_per_day'
   | 'leisure_minutes_per_day'
   | 'planning_horizon_days'
+  | 'odd_week_anchor'
 >;
 
 export interface PlannerInput {
@@ -93,8 +94,9 @@ function overlapMinutes(a: Interval, b: Interval) {
   return Math.max(0, Math.min(a.end, b.end) - Math.max(a.start, b.start)) / MINUTE;
 }
 
-export function routineAppliesOn(block: RoutineBlock, day: Date): boolean {
+export function routineAppliesOn(block: RoutineBlock, day: Date, oddAnchor: string): boolean {
   if (!block.weekdays.includes(isoWeekday(day))) return false;
+  if (block.week_parity !== 'all' && weekParity(day, oddAnchor) !== block.week_parity) return false;
   const d = toDateInput(day);
   if (block.valid_from && d < block.valid_from) return false;
   if (block.valid_until && d > block.valid_until) return false;
@@ -163,7 +165,7 @@ export function plan(input: PlannerInput): PlannerResult {
 
     let leisureHad = 0;
     for (const r of input.routine) {
-      if (!routineAppliesOn(r, date)) continue;
+      if (!routineAppliesOn(r, date, profile.odd_week_anchor)) continue;
       const iv = {
         start: atMinutes(date, timeToMinutes(r.start_time)).getTime(),
         end: atMinutes(date, timeToMinutes(r.end_time)).getTime(),

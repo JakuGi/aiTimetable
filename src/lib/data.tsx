@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabase } from './supabase';
 import { useAuth } from '../auth/AuthProvider';
 import { useToast } from '../components/Toast';
-import type { CalendarEvent, Category, Profile, RoutineBlock, Session, TableName, Task } from './types';
+import type { CalendarEvent, Category, EventTemplate, Profile, RoutineBlock, Session, TableName, Task } from './types';
 import type { Suggestion } from './planner';
 
 interface Tables {
@@ -12,6 +12,7 @@ interface Tables {
   routine_blocks: RoutineBlock[];
   events: CalendarEvent[];
   sessions: Session[];
+  event_templates: EventTemplate[];
 }
 
 type Row<T extends TableName> = Tables[T][number];
@@ -21,6 +22,7 @@ interface DataApi extends Omit<Tables, 'profiles'> {
   profile: Profile | null;
   loading: boolean;
   insert: <T extends TableName>(table: T, row: Draft<T>) => Promise<Row<T> | null>;
+  insertMany: <T extends TableName>(table: T, rows: Draft<T>[]) => Promise<boolean>;
   update: <T extends TableName>(table: T, id: string, patch: Draft<T>) => Promise<boolean>;
   remove: (table: TableName, id: string) => Promise<boolean>;
   /** Replace all future "suggested" sessions with a fresh planner result. */
@@ -39,10 +41,19 @@ const ORDER: Record<TableName, { column: string; ascending: boolean }> = {
   routine_blocks: { column: 'start_time', ascending: true },
   events: { column: 'starts_at', ascending: true },
   sessions: { column: 'starts_at', ascending: true },
+  event_templates: { column: 'start_time', ascending: true },
 };
 
 const TABLES = Object.keys(ORDER) as TableName[];
-const EMPTY: Tables = { profiles: [], categories: [], tasks: [], routine_blocks: [], events: [], sessions: [] };
+const EMPTY: Tables = {
+  profiles: [],
+  categories: [],
+  tasks: [],
+  routine_blocks: [],
+  events: [],
+  sessions: [],
+  event_templates: [],
+};
 
 const DataContext = createContext<DataApi | null>(null);
 
@@ -116,6 +127,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       await fetchTable(table);
       return created;
     };
+    const insertMany: DataApi['insertMany'] = async (table, rows) => {
+      if (!rows.length) return true;
+      const { error } = await supabase.from(table).insert(rows as never);
+      if (error) return fail(`Uloženie zlyhalo: ${error.message}`);
+      await fetchTable(table);
+      return true;
+    };
     const update: DataApi['update'] = async (table, id, patch) => {
       const { error } = await supabase.from(table).update(patch as never).eq('id', id);
       if (error) return fail(`Uloženie zlyhalo: ${error.message}`);
@@ -166,8 +184,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       routine_blocks: data.routine_blocks,
       events: data.events,
       sessions: data.sessions,
+      event_templates: data.event_templates,
       loading,
       insert,
+      insertMany,
       update,
       remove,
       saveSuggestions,

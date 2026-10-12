@@ -7,7 +7,17 @@ import { useEditor } from '../editor/Editor';
 import { useCalendarItems } from '../lib/useCalendarItems';
 import { coveredMinutes, plan, type PlannerWarning } from '../lib/planner';
 import { PRIORITY_LABELS, priorityColor } from '../lib/meta';
-import { fmt, fmtDuration, relativeDeadline, timeToMinutes, toDateInput, weekDays, weekStart } from '../lib/time';
+import {
+  fmt,
+  fmtDuration,
+  relativeDeadline,
+  timeToMinutes,
+  toDateInput,
+  weekDays,
+  weekParity,
+  weekStart,
+} from '../lib/time';
+import { placedOn } from '../editor/TemplateDialogs';
 import { useToast } from '../components/Toast';
 import { useMediaQuery } from '../lib/useMediaQuery';
 
@@ -70,6 +80,41 @@ export function WeekPage() {
     }
   };
 
+  const shownWeek = weekStart(anchor);
+  const parity = data.profile ? weekParity(anchor, data.profile.odd_week_anchor) : null;
+
+  /** Buses differ week to week: reuse last week's trips in one click, then adjust. */
+  const copyTrips = async () => {
+    const prevStart = addDays(shownWeek, -7).getTime();
+    const thisStart = shownWeek.getTime();
+    const taken = new Set(data.events.map((e) => `${e.title}|${new Date(e.starts_at).getTime()}`));
+    const rows = data.events
+      .filter((e) => {
+        const t = new Date(e.starts_at).getTime();
+        return e.kind === 'commute' && !e.all_day && t >= prevStart && t < thisStart;
+      })
+      .map((e) => {
+        const starts = addDays(new Date(e.starts_at), 7);
+        const ends = e.ends_at ? addDays(new Date(e.ends_at), 7) : null;
+        return {
+          title: e.title,
+          kind: e.kind,
+          starts_at: starts.toISOString(),
+          ends_at: ends?.toISOString() ?? null,
+          all_day: false,
+          location: e.location,
+          notes: e.notes,
+          category_id: e.category_id,
+          color: e.color,
+          remind_minutes_before: e.remind_minutes_before,
+          blocks_planning: e.blocks_planning,
+        };
+      })
+      .filter((r) => !taken.has(`${r.title}|${new Date(r.starts_at).getTime()}`));
+    if (!rows.length) return notify('Minulý týždeň nemá cesty, ktoré by tu ešte chýbali.', 'info');
+    if (await data.insertMany('events', rows)) notify(`Skopírované cesty: ${rows.length}.`, 'success');
+  };
+
   const acceptAll = () => data.setSessionStatus(suggested.map((s) => s.id), 'planned');
   const discardAll = () => data.saveSuggestions([]);
 
@@ -101,6 +146,9 @@ export function WeekPage() {
               ? fmt(anchor, 'EEEE d. MMMM')
               : `${fmt(days[0], 'd. M.')} – ${fmt(days[6], 'd. M. yyyy')}`}
           </h1>
+          {parity && (
+            <span className={`parity-tag parity-${parity}`}>{parity === 'odd' ? 'nepárny týždeň' : 'párny týždeň'}</span>
+          )}
         </div>
         <div className="toolbar-actions">
           <div className="segmented small" role="radiogroup" aria-label="Zobrazenie">
@@ -148,7 +196,48 @@ export function WeekPage() {
           />
         </section>
 
-        <aside className="side-panel" aria-label="Termíny a úlohy">
+        <aside className="side-panel" aria-label="Spoje, termíny a úlohy">
+          <section>
+            <h2>Spoje v tomto týždni</h2>
+            {data.event_templates.length === 0 ? (
+              <p className="empty">
+                Ulož si autobusy a vlaky, ktorými chodíš, a vkladaj ich len do dní, keď nimi naozaj ideš.{' '}
+                <button className="link-btn" onClick={() => editor.editTemplate({})}>
+                  Pridať prvý spoj
+                </button>
+              </p>
+            ) : (
+              <ul className="templates">
+                {data.event_templates.map((t) => {
+                  const count = weekDays(shownWeek).filter((d) => placedOn(t, d, data.events)).length;
+                  return (
+                    <li key={t.id}>
+                      <button
+                        className="template-btn"
+                        style={{ '--c': t.color ?? data.categoryById(t.category_id)?.color ?? '#7C879C' } as CSSProperties}
+                        onClick={() => editor.placeTemplate(t, shownWeek)}
+                      >
+                        <span className="template-time">{t.start_time.slice(0, 5)}</span>
+                        <span className="template-title">{t.title}</span>
+                        <span className="template-count">{count ? `${count}× tento týždeň` : 'pridať do dní'}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div className="quick-row">
+              {data.event_templates.length > 0 && (
+                <button className="link-btn" onClick={() => editor.editTemplate({})}>
+                  Nový spoj
+                </button>
+              )}
+              <button className="link-btn" onClick={copyTrips}>
+                Skopírovať cesty z minulého týždňa
+              </button>
+            </div>
+          </section>
+
           {warnings.length > 0 && (
             <section className="warn-box">
               <h2>Toto sa nezmestí</h2>

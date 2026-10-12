@@ -4,12 +4,12 @@ import { Modal } from '../components/Modal';
 import { ColorSwatches } from '../components/ColorSwatches';
 import { useData } from '../lib/data';
 import { EVENT_KINDS, REMIND_OPTIONS } from '../lib/meta';
-import { fromLocalInput, parseInput, toDateInput, toLocalInput } from '../lib/time';
+import { fmt, fromLocalInput, parseInput, toDateInput, toLocalInput } from '../lib/time';
 import type { CalendarEvent, EventKind } from '../lib/types';
 import { CategorySelect, Field, Segmented } from './fields';
 
 export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEvent>; onClose: () => void }) {
-  const { insert, update, remove } = useData();
+  const { insert, update, remove, event_templates } = useData();
   const start0 = initial.starts_at ? new Date(initial.starts_at) : new Date();
   const [title, setTitle] = useState(initial.title ?? '');
   const [kind, setKind] = useState<EventKind>(initial.kind ?? 'event');
@@ -27,6 +27,7 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
     initial.remind_minutes_before !== undefined ? initial.remind_minutes_before : null,
   );
   const [blocks, setBlocks] = useState(initial.blocks_planning ?? true);
+  const [asTemplate, setAsTemplate] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -78,6 +79,19 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
     };
     setBusy(true);
     const ok = initial.id ? await update('events', initial.id, row) : Boolean(await insert('events', row));
+    if (ok && asTemplate && endsAt && kind !== 'reminder') {
+      await insert('event_templates', {
+        title: row.title,
+        kind: kind as 'event' | 'work' | 'commute' | 'leisure',
+        start_time: fmt(startsAt, 'HH:mm'),
+        end_time: fmt(endsAt, 'HH:mm'),
+        location: row.location,
+        notes: row.notes,
+        category_id: categoryId,
+        color,
+        remind_minutes_before: remind,
+      });
+    }
     setBusy(false);
     if (ok) onClose();
   };
@@ -175,6 +189,12 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
         <label className="check">
           <input type="checkbox" checked={blocks} onChange={(e) => setBlocks(e.target.checked)} />
           Počas tohto času mi neplánuj úlohy
+        </label>
+      )}
+      {!initial.id && !isReminder && !allDay && !event_templates.some((t) => t.title === title.trim()) && (
+        <label className="check">
+          <input type="checkbox" checked={asTemplate} onChange={(e) => setAsTemplate(e.target.checked)} />
+          {kind === 'commute' ? 'Uložiť aj ako spoj, aby som ho nabudúce vložil jedným klikom' : 'Uložiť aj na rýchle pridávanie'}
         </label>
       )}
       {error && <p className="form-error">{error}</p>}

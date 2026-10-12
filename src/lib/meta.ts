@@ -1,12 +1,28 @@
-import type { EventKind, Priority, RoutineKind } from './types';
+import type { EventKind, Priority, RoutineKind, WeekParity } from './types';
 
 export const ROUTINE_KINDS: Record<RoutineKind, { label: string; color: string }> = {
   class: { label: 'Vyučovanie', color: '#2B4BDB' },
   work: { label: 'Práca, brigáda', color: '#7A5AF8' },
-  commute: { label: 'Cesta (bus, vlak)', color: '#7C879C' },
   leisure: { label: 'Voľný čas', color: '#E8A317' },
   other: { label: 'Iné, som zaneprázdnený', color: '#5E6B85' },
 };
+
+export const PARITY_LABELS: Record<WeekParity, string> = {
+  all: 'Každý týždeň',
+  odd: 'Nepárny týždeň',
+  even: 'Párny týždeň',
+};
+
+export const DEFAULT_CLASS_PERIODS = [
+  { start: '08:00', end: '08:45' },
+  { start: '08:55', end: '09:40' },
+  { start: '09:50', end: '10:35' },
+  { start: '10:55', end: '11:40' },
+  { start: '11:50', end: '12:35' },
+  { start: '12:45', end: '13:30' },
+  { start: '13:35', end: '14:20' },
+  { start: '14:25', end: '15:10' },
+];
 
 export const EVENT_KINDS: Record<EventKind, { label: string; color: string }> = {
   event: { label: 'Udalosť', color: '#12A39A' },

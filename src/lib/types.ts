@@ -11,7 +11,16 @@ export interface Profile {
   leisure_minutes_per_day: number;
   planning_horizon_days: number;
   priority_colors: string[];
+  class_periods: ClassPeriod[];
+  odd_week_anchor: string; // "YYYY-MM-DD", a Monday of an odd week
 }
+
+export interface ClassPeriod {
+  start: string; // "HH:MM"
+  end: string;
+}
+
+export type WeekParity = 'all' | 'odd' | 'even';
 
 export interface Category {
   id: string;
@@ -37,7 +46,7 @@ export interface Task {
   created_at: string;
 }
 
-export type RoutineKind = 'class' | 'work' | 'commute' | 'leisure' | 'other';
+export type RoutineKind = 'class' | 'work' | 'leisure' | 'other';
 
 export interface RoutineBlock {
   id: string;
@@ -53,6 +62,25 @@ export interface RoutineBlock {
   color: string | null;
   valid_from: string | null; // "YYYY-MM-DD"
   valid_until: string | null;
+  week_parity: WeekParity;
+}
+
+export type TemplateKind = 'event' | 'work' | 'commute' | 'leisure';
+
+/** A saved connection (bus, train) or other block you drop into chosen days of a week. */
+export interface EventTemplate {
+  id: string;
+  user_id: string;
+  title: string;
+  kind: TemplateKind;
+  start_time: string;
+  end_time: string;
+  location: string | null;
+  notes: string | null;
+  category_id: string | null;
+  color: string | null;
+  remind_minutes_before: number | null;
+  sort_order: number;
 }
 
 export type EventKind = 'event' | 'work' | 'commute' | 'reminder' | 'leisure';
@@ -86,4 +114,11 @@ export interface Session {
   status: SessionStatus;
 }
 
-export type TableName = 'profiles' | 'categories' | 'tasks' | 'routine_blocks' | 'events' | 'sessions';
+export type TableName =
+  | 'profiles'
+  | 'categories'
+  | 'tasks'
+  | 'routine_blocks'
+  | 'events'
+  | 'sessions'
+  | 'event_templates';
