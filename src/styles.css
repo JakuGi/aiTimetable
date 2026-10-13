@@ -2740,3 +2740,175 @@ input[type='checkbox'] {
     transition: none !important;
   }
 }
+
+/* ------------------------------------------------------------------ check-in after a block */
+
+.checkin,
+.checkin-pill {
+  position: fixed;
+  z-index: 40;
+  right: 20px;
+  bottom: 20px;
+}
+.checkin {
+  width: 320px;
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  padding: 12px 14px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--c, var(--pen));
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow);
+  animation: checkin-in 0.18s ease-out;
+}
+@keyframes checkin-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+.checkin-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.checkin-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--margin);
+  flex: none;
+}
+.checkin-later {
+  margin-left: auto;
+  font: inherit;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+.checkin-later:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.checkin-title {
+  display: block;
+  margin: 6px 0 2px;
+  padding: 0;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.checkin-title:hover {
+  text-decoration: underline;
+}
+.checkin-when {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.checkin-actions {
+  display: grid;
+  gap: 8px;
+}
+.checkin-actions .btn {
+  display: grid;
+  justify-items: start;
+  text-align: left;
+  white-space: normal;
+}
+.checkin-actions .btn small {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+}
+.checkin-finish {
+  justify-self: start;
+  margin-top: 2px;
+  font-size: 13px;
+}
+.checkin-q {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.checkin-custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 6px;
+  font-size: 13px;
+}
+.checkin-custom input {
+  width: 76px;
+  font: inherit;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+}
+.checkin-more .small {
+  margin: 0 0 10px;
+}
+.checkin-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.checkin-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+/* toasts move out of the way while the card is open */
+body:has(.checkin) .toasts {
+  top: 16px;
+  bottom: auto;
+}
+
+@media (max-width: 760px) {
+  .checkin,
+  .checkin-pill {
+    right: 12px;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .checkin {
+    left: 12px;
+    width: auto;
+    max-height: calc(100dvh - 140px);
+  }
+  body:has(.checkin) .toasts {
+    top: calc(12px + env(safe-area-inset-top));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkin {
+    animation: none;
+  }
+}

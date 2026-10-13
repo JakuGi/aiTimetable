@@ -187,7 +187,9 @@ export function plan(input: PlannerInput): PlannerResult {
     }
     for (const s of active) {
       const iv = { start: new Date(s.starts_at).getTime(), end: new Date(s.ends_at).getTime() };
-      state.free = subtract(state.free, iv);
+      // work blocks already in the plan get their break too, like the ones placed below
+      const rest = s.kind === 'task' ? profile.break_minutes * MINUTE : 0;
+      state.free = subtract(state.free, { start: iv.start, end: iv.end + rest });
       const inDay = overlapMinutes(iv, dayInterval);
       if (s.kind === 'leisure') leisureHad += inDay;
       else {
@@ -327,4 +329,18 @@ function firstSlot(pool: Interval[], minLen: number, deadlineMs: number | null) 
     if (len >= minLen) return { start, maxLen: len };
   }
   return null;
+}
+
+/**
+ * Pencil blocks for `minutes` more work on one task, fitted around everything already
+ * in the calendar, other pencil suggestions included (they stay as they are).
+ * Used after a block ends: "not done at all" or "done, but it needs more time".
+ */
+export function planFollowUp(input: PlannerInput, taskId: string, minutes: number): PlannerResult {
+  const task = input.tasks.find((t) => t.id === taskId);
+  if (!task || minutes < 5) return { suggestions: [], warnings: [] };
+  const sessions = input.sessions.map((s) => (s.status === 'suggested' ? { ...s, status: 'planned' as const } : s));
+  const target: Task = { ...task, status: 'todo', estimated_minutes: coveredMinutes(taskId, sessions) + minutes };
+  const result = plan({ ...input, sessions, tasks: [target] });
+  return { suggestions: result.suggestions.filter((s) => s.kind === 'task'), warnings: result.warnings };
 }

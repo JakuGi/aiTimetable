@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { plan, subtract, type PlannerProfile } from './planner';
+import { plan, planFollowUp, subtract, type PlannerProfile } from './planner';
 import { weekParity } from './time';
 import type { CalendarEvent, RoutineBlock, Session, Task } from './types';
 
@@ -239,5 +239,80 @@ describe('plan', () => {
     const total = work.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60000, 0);
     expect(total).toBe(60);
     expect(work[0].start.getTime()).toBeGreaterThanOrEqual(new Date(2026, 9, 12, 12, 30).getTime());
+  });
+});
+
+describe('planFollowUp', () => {
+  const session = (over: Partial<Session>): Session => ({
+    id: 's',
+    user_id: 'u',
+    kind: 'task',
+    task_id: 't1',
+    starts_at: new Date(2026, 9, 12, 8, 0).toISOString(),
+    ends_at: new Date(2026, 9, 12, 9, 0).toISOString(),
+    status: 'done',
+    ...over,
+  });
+  const minutesOf = (s: { start: Date; end: Date }[]) => s.reduce((m, x) => m + (x.end.getTime() - x.start.getTime()) / 60000, 0);
+
+  it('plans exactly the extra time, even when the estimate is already covered', () => {
+    const { suggestions } = planFollowUp(
+      { now, profile, routine: [], events: [], sessions: [session({})], tasks: [task({ estimated_minutes: 60 })] },
+      't1',
+      45,
+    );
+    expect(suggestions.every((s) => s.kind === 'task' && s.taskId === 't1')).toBe(true);
+    expect(minutesOf(suggestions)).toBe(45);
+  });
+
+  it('goes around other pencil suggestions and keeps them', () => {
+    const other = session({
+      id: 'o',
+      task_id: 't2',
+      starts_at: new Date(2026, 9, 12, 8, 0).toISOString(),
+      ends_at: new Date(2026, 9, 12, 10, 0).toISOString(),
+      status: 'suggested',
+    });
+    const { suggestions } = planFollowUp(
+      { now, profile, routine: [], events: [], sessions: [other], tasks: [task({}), task({ id: 't2' })] },
+      't1',
+      30,
+    );
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].start.getTime()).toBeGreaterThanOrEqual(new Date(2026, 9, 12, 10, 0).getTime());
+  });
+
+  it('reports what did not fit before the deadline', () => {
+    const { suggestions, warnings } = planFollowUp(
+      {
+        now,
+        profile,
+        routine: [routine({ start_time: '08:00:00', end_time: '19:30:00' })],
+        events: [],
+        sessions: [],
+        tasks: [task({ deadline: new Date(2026, 9, 12, 20, 0).toISOString() })],
+      },
+      't1',
+      90,
+    );
+    expect(minutesOf(suggestions)).toBe(30);
+    expect(warnings[0]).toMatchObject({ taskId: 't1', missingMinutes: 60 });
+  });
+});
+
+describe('breaks', () => {
+  it('keeps a break after a block that is already planned', () => {
+    const planned: Session = {
+      id: 'p',
+      user_id: 'u',
+      kind: 'task',
+      task_id: 't2',
+      starts_at: new Date(2026, 9, 12, 8, 0).toISOString(),
+      ends_at: new Date(2026, 9, 12, 9, 0).toISOString(),
+      status: 'planned',
+    };
+    const { suggestions } = plan({ now, profile, routine: [], events: [], sessions: [planned], tasks: [task({}), task({ id: 't2', estimated_minutes: 60 })] });
+    const first = suggestions.find((s) => s.taskId === 't1')!;
+    expect(first.start.getTime()).toBe(new Date(2026, 9, 12, 9, 10).getTime());
   });
 });

@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { Brand } from './Brand';
 import { useReminders } from '../lib/useReminders';
 import { useData } from '../lib/data';
+import { CheckInPanel } from './CheckIn';
 
 const NAV = [
   { to: '/', label: 'Rozvrh', icon: 'M3 5h14v12H3zM3 9h14M7 3v4M13 3v4', end: true },
@@ -40,6 +41,7 @@ export function Layout() {
         {profile?.display_name && <div className="nav-user">{profile.display_name}</div>}
       </nav>
       <main className="main">{loading ? <div className="loading">Načítavam tvoj rozvrh…</div> : <Outlet />}</main>
+      {!loading && <CheckInPanel />}
     </div>
   );
 }

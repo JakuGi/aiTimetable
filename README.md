@@ -18,6 +18,7 @@ Týždenný rozvrh, úlohy s termínmi a návrhy, kedy čo robiť. Jedna appka p
   - denný limit práce, prestávka po každom bloku, najviac 2 bloky jednej úlohy za deň (ak termín nehorí),
   - každý večer drží voľný čas, ktorý obetuje len vtedy, keď by sa termín inak nestihol,
   - keď sa niečo nezmestí, povie, koľko času chýba.
+- **Ako to išlo?** Keď prijatý blok práce skončí, v rohu (na mobile nad spodnou lištou) sa na akejkoľvek obrazovke ukáže kartička: *Splnil som podľa plánu*, *Splnil, ale treba viac času* (zadaný čas pridá k odhadu úlohy a ceruzkou naplánuje ďalší blok), *Nesplnil som* (ten istý čas naplánuje znova ceruzkou) alebo *Celá úloha je už hotová*. *Neskôr* ju zbalí do malého tlačidla; pýta sa na bloky za posledných 14 dní.
 - **Drag & drop v rozvrhu**: bloky práce (aj návrhy ceruzkou) a udalosti presúvaš myšou na iný čas alebo deň, spodným okrajom meníš dĺžku; na mobile blok podržíš a potiahneš. Časy sa prichytávajú na 15 minút, prekrytie s iným blokom appka ukáže. Esc ťahanie zruší.
 - **Mobil**: kompaktná hlavička, pás dní na prepínanie (aj swipe do strán), pohľady Deň / 3 dni / Týždeň, spoje a termíny v spodnom paneli, dialógy ako spodné panely, kalendár s bodkami a zoznamom vybraného dňa.
 - **Freelance mód** (zapína sa v Nastaveniach, pribudne záložka Freelance):
