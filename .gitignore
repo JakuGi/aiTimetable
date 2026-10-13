@@ -9,3 +9,4 @@ dev-dist
 .vercel
 .env*
 !.env.example
+*.tsbuildinfo
