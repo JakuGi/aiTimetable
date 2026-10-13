@@ -17,6 +17,7 @@
   --margin: #e2483d;
   --pencil: #7f889e;
   --ok: #1f8a5b;
+  --leisure: #2f9e6e;
   --shadow: 0 1px 2px rgb(27 35 64 / 0.06), 0 8px 24px -12px rgb(27 35 64 / 0.18);
   --radius-s: 6px;
   --radius-m: 10px;
@@ -41,6 +42,7 @@
     --margin: #ff6b5e;
     --pencil: #9aa3c0;
     --ok: #4cc38a;
+    --leisure: #5cc99a;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -12px rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
@@ -61,6 +63,7 @@
   --margin: #ff6b5e;
   --pencil: #9aa3c0;
   --ok: #4cc38a;
+  --leisure: #5cc99a;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -12px rgb(0 0 0 / 0.6);
   color-scheme: dark;
 }
@@ -890,6 +893,40 @@ input[type='checkbox'] {
 }
 .grid-col.is-today {
   background-color: color-mix(in srgb, var(--pen) 3%, transparent);
+}
+
+/* free time: a faint window behind the blocks, not a block itself */
+.leisure-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--leisure) 9%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--leisure) 45%, transparent);
+}
+.leisure-band.is-gap {
+  background: color-mix(in srgb, var(--leisure) 5%, transparent);
+  border-left-style: dotted;
+  border-left-color: color-mix(in srgb, var(--leisure) 35%, transparent);
+}
+.leisure-label {
+  display: block;
+  padding: 2px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--leisure) 70%, var(--ink));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.leisure-len {
+  font-weight: 400;
+  opacity: 0.8;
+}
+.grid-dense .leisure-len {
+  display: none;
 }
 
 .now-line {
@@ -2911,4 +2948,118 @@ body:has(.checkin) .toasts {
   .checkin {
     animation: none;
   }
+}
+
+/* ------------------------------------------------------------------ free time settings */
+
+.leisure-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.leisure-mode {
+  font: inherit;
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.leisure-mode b {
+  font-size: 14px;
+}
+.leisure-mode span {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.leisure-mode:hover {
+  border-color: var(--ink-2);
+}
+.leisure-mode[aria-checked='true'] {
+  border-color: var(--leisure);
+  background: color-mix(in srgb, var(--leisure) 10%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--leisure);
+}
+.leisure-inline input {
+  max-width: 140px;
+}
+.leisure-own {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.leisure-own input {
+  width: 72px;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+}
+.leisure-days {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 14px;
+}
+.leisure-day {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.leisure-day-name {
+  width: 28px;
+  font-weight: 700;
+}
+.leisure-day select,
+.leisure-day input {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+}
+.leisure-preview ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+.leisure-preview li {
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-left: 3px solid color-mix(in srgb, var(--leisure) 45%, transparent);
+  background: color-mix(in srgb, var(--leisure) 7%, transparent);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+.leisure-preview li b {
+  width: 22px;
+}
+/* name | when | (time) | how long, always fitting the width */
+.leisure-day {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: 28px minmax(0, 220px);
+  grid-auto-columns: minmax(0, 104px);
+}
+.leisure-day select,
+.leisure-day input {
+  width: 100%;
+  min-width: 0;
 }

@@ -9,7 +9,8 @@ import {
   type TouchEvent,
 } from 'react';
 import { isSameDay, isToday } from 'date-fns';
-import { atMinutes, fmt, fmtTime, minutesToTime, MINUTE } from '../lib/time';
+import { atMinutes, fmt, fmtDuration, fmtTime, minutesToTime, MINUTE } from '../lib/time';
+import type { LeisureBand } from '../lib/leisure';
 import { textOn } from '../lib/meta';
 import { useGridDrag } from './useGridDrag';
 
@@ -43,6 +44,8 @@ interface Props {
   days: Date[];
   items: GridItem[];
   strip?: StripItem[];
+  /** free time, drawn faintly behind the blocks */
+  bands?: LeisureBand[];
   fromHour?: number;
   toHour?: number;
   scrollToHour?: number;
@@ -111,6 +114,7 @@ export function TimeGrid({
   days,
   items,
   strip = [],
+  bands = [],
   fromHour = 0,
   toHour = 24,
   scrollToHour = 7,
@@ -291,6 +295,29 @@ export function TimeGrid({
                 className={`grid-col${today ? ' is-today' : ''}`}
                 onClick={(e) => handleColumnClick(d, e)}
               >
+                {bands
+                  .filter((b) => isSameDay(b.day, d))
+                  .map((b) => {
+                    const top = ((b.start.getTime() - atMinutes(d, fromHour * 60).getTime()) / (60 * MINUTE)) * HOUR_PX;
+                    const height = ((b.end.getTime() - b.start.getTime()) / (60 * MINUTE)) * HOUR_PX;
+                    const mins = (b.end.getTime() - b.start.getTime()) / MINUTE;
+                    return (
+                      <div
+                        key={b.id}
+                        className={`leisure-band${b.gap ? ' is-gap' : ''}`}
+                        style={{ top, height }}
+                        title={`${b.gap ? 'Voľno medzi prácou' : 'Voľný čas'}, ${fmtTime(b.start)}–${fmtTime(b.end)}`}
+                        aria-hidden="true"
+                      >
+                        {height >= 22 && (
+                          <span className="leisure-label">
+                            {b.gap ? 'voľno' : 'voľný čas'}
+                            {height >= 40 && <span className="leisure-len"> {fmtDuration(mins)}</span>}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 {perDay[di].map((p) => (
                   <button
                     type="button"

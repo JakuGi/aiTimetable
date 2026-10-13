@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { plan, planFollowUp, subtract, type PlannerProfile } from './planner';
+import { fixedTime, plan, placeLeisure, planFollowUp, subtract, type PlannerProfile } from './planner';
 import { weekParity } from './time';
 import type { CalendarEvent, RoutineBlock, Session, Task } from './types';
 
@@ -145,9 +145,9 @@ describe('plan', () => {
     const work = suggestions.filter((s) => s.kind === 'task');
     const total = work.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60000, 0);
     expect(total).toBe(180);
-    const leisure = suggestions.filter((s) => s.kind === 'leisure');
-    expect(leisure).toHaveLength(1);
-    expect(leisure[0].end.getHours()).toBe(20);
+    // the free time before sleep (19:00-20:00) stays empty, and it is not a block
+    for (const s of work) expect(overlaps(s, new Date(2026, 9, 12, 19).getTime(), new Date(2026, 9, 12, 20).getTime())).toBe(false);
+    expect(suggestions.every((s) => s.kind === 'task')).toBe(true);
   });
 
   it('skips gaps too short for real work (school ends 13:35, bus at 13:50)', () => {
@@ -179,10 +179,10 @@ describe('plan', () => {
       tasks: [task({ estimated_minutes: 240, priority: 4, deadline: new Date(2026, 9, 15, 8).toISOString() })],
     });
     expect(warnings).toHaveLength(0);
-    const leisure = suggestions.filter((s) => s.kind === 'leisure');
     // Mon, Tue, Wed evenings stay free (each 19:00–20:00)
     for (const day of [12, 13, 14]) {
-      expect(leisure.some((l) => l.start.getDate() === day && l.start.getHours() === 19)).toBe(true);
+      const from = new Date(2026, 9, day, 19).getTime();
+      expect(suggestions.some((s) => overlaps(s, from, from + 3600000))).toBe(false);
     }
   });
 
@@ -314,5 +314,105 @@ describe('breaks', () => {
     const { suggestions } = plan({ now, profile, routine: [], events: [], sessions: [planned], tasks: [task({}), task({ id: 't2', estimated_minutes: 60 })] });
     const first = suggestions.find((s) => s.taskId === 't1')!;
     expect(first.start.getTime()).toBe(new Date(2026, 9, 12, 9, 10).getTime());
+  });
+});
+
+describe('free time windows', () => {
+  const at = (day: number, h: number, m = 0) => new Date(2026, 9, day, h, m).getTime();
+  const school = routine({ id: 'school', end_time: '13:35:00' });
+  const bus: CalendarEvent = {
+    id: 'bus',
+    user_id: 'u',
+    title: 'Bus domov',
+    kind: 'commute',
+    starts_at: new Date(2026, 9, 12, 13, 50).toISOString(),
+    ends_at: new Date(2026, 9, 12, 14, 25).toISOString(),
+    all_day: false,
+    location: null,
+    notes: null,
+    category_id: null,
+    color: null,
+    remind_minutes_before: null,
+    blocks_planning: true,
+  };
+  const window = (day: number, p: Partial<PlannerProfile>, extra: { events?: CalendarEvent[]; sessions?: Session[] } = {}) => {
+    const prof = { ...profile, ...p };
+    const fixed = fixedTime(new Date(2026, 9, day), { profile: prof, routine: [school], events: extra.events ?? [], sessions: extra.sessions ?? [] });
+    const when = prof.leisure_when as 'after_school' | 'evening' | 'before_sleep' | 'custom';
+    return placeLeisure(when, prof.leisure_start ?? null, prof.leisure_minutes_per_day, fixed);
+  };
+
+  it('after school starts once the bus home arrives', () => {
+    expect(window(12, { leisure_when: 'after_school' }, { events: [bus] })).toEqual([{ start: at(12, 14, 25), end: at(12, 15, 25) }]);
+    // no school on Saturday: evening instead
+    expect(window(17, { leisure_when: 'after_school' })).toEqual([{ start: at(17, 18), end: at(17, 19) }]);
+  });
+
+  it('evening, before sleep and a set time', () => {
+    expect(window(12, { leisure_when: 'evening' })).toEqual([{ start: at(12, 18), end: at(12, 19) }]);
+    expect(window(12, { leisure_when: 'before_sleep' })).toEqual([{ start: at(12, 19), end: at(12, 20) }]);
+    expect(window(12, { leisure_when: 'custom', leisure_start: '15:30' })).toEqual([{ start: at(12, 15, 30), end: at(12, 16, 30) }]);
+  });
+
+  it('moves out of the way of work already accepted in the evening', () => {
+    const work: Session = {
+      id: 'w',
+      user_id: 'u',
+      kind: 'task',
+      task_id: 't1',
+      starts_at: new Date(2026, 9, 12, 18).toISOString(),
+      ends_at: new Date(2026, 9, 12, 19).toISOString(),
+      status: 'planned',
+    };
+    // 19:10-20:00 is too short, so it goes right before the work
+    expect(window(12, { leisure_when: 'evening' }, { sessions: [work] })).toEqual([{ start: at(12, 17), end: at(12, 18) }]);
+  });
+
+  it('flexible: work fills the day but leaves the free minutes somewhere', () => {
+    const { suggestions } = plan({
+      now,
+      profile: { ...profile, planning_horizon_days: 1, focus_block_minutes: 300, max_focus_minutes_per_day: 720, leisure_minutes_per_day: 120, leisure_when: 'flexible' },
+      routine: [],
+      events: [],
+      sessions: [],
+      tasks: [task({ estimated_minutes: 900 })],
+    });
+    const total = suggestions.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60000, 0);
+    // 12 h day: 580 min of work + 2 breaks leaves exactly 2 h free
+    expect(total).toBe(580);
+  });
+
+  it('per day: a day switched off keeps no free time', () => {
+    const days = Array.from({ length: 7 }, () => ({ when: 'evening' as const, start: null, minutes: 60 }));
+    const { suggestions } = plan({
+      now,
+      profile: {
+        ...profile,
+        planning_horizon_days: 1,
+        focus_block_minutes: 720,
+        max_focus_minutes_per_day: 720,
+        leisure_when: 'per_day',
+        leisure_days: [{ when: 'off', start: null, minutes: 0 }, ...days.slice(1)],
+      },
+      routine: [],
+      events: [],
+      sessions: [],
+      tasks: [task({ estimated_minutes: 720 })],
+    });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].end.getHours()).toBe(20);
+  });
+
+  it('gives the window up only when a deadline needs it', () => {
+    const { suggestions, warnings } = plan({
+      now,
+      profile: { ...profile, planning_horizon_days: 1, focus_block_minutes: 720, max_focus_minutes_per_day: 720, leisure_when: 'evening' },
+      routine: [],
+      events: [],
+      sessions: [],
+      tasks: [task({ estimated_minutes: 700, deadline: new Date(2026, 9, 12, 20).toISOString() })],
+    });
+    expect(warnings).toHaveLength(0);
+    expect(suggestions.some((s) => overlaps(s, at(12, 18), at(12, 19)))).toBe(true);
   });
 });

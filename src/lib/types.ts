@@ -9,6 +9,9 @@ export interface Profile {
   break_minutes: number;
   max_focus_minutes_per_day: number;
   leisure_minutes_per_day: number;
+  leisure_when: LeisureMode;
+  leisure_start: string; // "HH:MM[:SS]", for leisure_when = 'custom'
+  leisure_days: LeisureDay[]; // Monday..Sunday, for leisure_when = 'per_day'
   planning_horizon_days: number;
   priority_colors: string[];
   class_periods: ClassPeriod[];
@@ -27,6 +30,16 @@ export interface Profile {
   quiet_enabled: boolean;
   quiet_from: string;
   quiet_to: string;
+}
+
+/** When free time is kept: a preferred window the planner leaves empty. */
+export type LeisureWhen = 'after_school' | 'evening' | 'before_sleep' | 'custom' | 'flexible';
+export type LeisureMode = LeisureWhen | 'per_day';
+
+export interface LeisureDay {
+  when: LeisureWhen | 'off';
+  start: string | null; // "HH:MM" for 'custom'
+  minutes: number;
 }
 
 /** event = a gig at a place and time (loading, moving, event work); project = task-based work */

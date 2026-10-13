@@ -47,7 +47,7 @@ export function WeekPage() {
       view === 'day' ? [anchor] : view === '3day' ? [0, 1, 2].map((i) => addDays(anchor, i)) : weekDays(weekStart(anchor)),
     [view, anchor.getTime()],
   );
-  const { items, strip } = useCalendarItems(days);
+  const { items, strip, bands } = useCalendarItems(days);
 
   const go = (date: Date, v: View = view) => {
     const next = new URLSearchParams(params);
@@ -81,12 +81,11 @@ export function WeekPage() {
     setPlanning(false);
     if (!ok) return;
     setWarnings(result.warnings);
-    const work = result.suggestions.filter((s) => s.kind === 'task').length;
-    const fun = result.suggestions.length - work;
+    const work = result.suggestions.length;
     if (!result.suggestions.length) {
       notify(openTasks.length ? 'Nenašiel som voľný čas na nové bloky.' : 'Nemáš otvorené úlohy, máš voľno.', 'info');
     } else {
-      notify(`Návrh: ${work} ${plural(work, 'blok', 'bloky', 'blokov')} práce a ${fun}× voľný čas.`, 'success');
+      notify(`Návrh: ${work} ${plural(work, 'blok', 'bloky', 'blokov')} práce, voľný čas ostal voľný.`, 'success');
     }
     if (result.warnings.length && narrow) setSheet(true);
   };
@@ -235,6 +234,7 @@ export function WeekPage() {
             days={days}
             items={items}
             strip={strip}
+            bands={bands}
             scrollToHour={isCurrent ? Math.max(dayStartHour, nowHour - 1) : dayStartHour}
             onSlotClick={(start) => editor.editEvent({ starts_at: start.toISOString() })}
             onSwipe={narrow ? (dir) => go(addDays(anchor, dir * step)) : undefined}

@@ -1,5 +1,5 @@
 import { addDays, startOfDay } from 'date-fns';
-import type { CalendarEvent, Gig, Profile, RoutineBlock, Session, Task } from './types';
+import type { CalendarEvent, Gig, LeisureDay, LeisureWhen, Profile, RoutineBlock, Session, Task } from './types';
 import { gigBusy } from './freelance';
 import { DAY, MINUTE, atMinutes, isoWeekday, timeToMinutes, toDateInput, weekParity } from './time';
 
@@ -11,8 +11,9 @@ import { DAY, MINUTE, atMinutes, isoWeekday, timeToMinutes, toDateInput, weekPar
  *  1. Never overlap anything busy (classes, commute, events, planned sessions).
  *  2. Work happens only between day_start and day_end and never after a task's deadline.
  *  3. Daily focus time is capped (max_focus_minutes_per_day); every block is followed by a break.
- *  4. Each day keeps leisure time in the evening; it is given up only for tasks that
- *     would otherwise miss their deadline.
+ *  4. Each day keeps its free time where the user wants it (after school, evening, before
+ *     sleep, a set time, or anywhere around the work). It is not a block in the calendar,
+ *     just a window left empty; work goes there only when a deadline would be missed.
  *  5. Urgent (close deadline) and important (high priority) tasks get the earliest slots;
  *     tasks with distant deadlines are spread out (max 2 blocks per task per day).
  */
@@ -27,7 +28,8 @@ export type PlannerProfile = Pick<
   | 'leisure_minutes_per_day'
   | 'planning_horizon_days'
   | 'odd_week_anchor'
->;
+> &
+  Partial<Pick<Profile, 'leisure_when' | 'leisure_start' | 'leisure_days'>>;
 
 export interface PlannerInput {
   now: Date;
@@ -41,7 +43,7 @@ export interface PlannerInput {
 }
 
 export interface Suggestion {
-  kind: 'task' | 'leisure';
+  kind: 'task';
   taskId: string | null;
   start: Date;
   end: Date;
@@ -58,7 +60,7 @@ export interface PlannerResult {
   warnings: PlannerWarning[];
 }
 
-interface Interval {
+export interface Interval {
   start: number;
   end: number;
 }
@@ -68,6 +70,8 @@ interface DayState {
   windowEnd: number;
   free: Interval[];
   leisure: Interval[];
+  /** 'flexible' free time: minutes that must stay free somewhere in the day */
+  keepFree: number;
   focusUsed: number;
   chunksPerTask: Map<string, number>;
 }
@@ -75,6 +79,7 @@ interface DayState {
 const STEP = 5 * MINUTE;
 const MIN_CHUNK = 30; // shortest useful work block
 const MIN_LEISURE = 15;
+const EVENING = 18 * 60;
 const MAX_CHUNKS_PER_DAY = 2;
 
 const ceilStep = (t: number) => Math.ceil(t / STEP) * STEP;
@@ -145,65 +150,47 @@ export function taskScore(task: Task, now: Date): number {
 export function plan(input: PlannerInput): PlannerResult {
   const { now, profile } = input;
   const nowMs = ceilStep(now.getTime());
-  const dayStartMin = timeToMinutes(profile.day_start);
-  const dayEndMin = timeToMinutes(profile.day_end);
   const active = input.sessions.filter((s) => s.status === 'planned' || s.status === 'done');
-  const blockingEvents = input.events.filter((e) => e.blocks_planning && e.kind !== 'reminder');
 
-  // 1) free time per day
+  // 1) free time per day, minus the free-time window the user wants kept
   const days: DayState[] = [];
   for (let i = 0; i < profile.planning_horizon_days; i++) {
     const date = addDays(startOfDay(now), i);
-    const windowStart = Math.max(atMinutes(date, dayStartMin).getTime(), nowMs);
-    const windowEnd = atMinutes(date, dayEndMin).getTime();
-    const dayInterval = { start: atMinutes(date, dayStartMin).getTime(), end: windowEnd };
+    const fixed = fixedTime(date, input);
+    const windowStart = Math.max(fixed.dayStart, nowMs);
+    const windowEnd = fixed.dayEnd;
     const state: DayState = {
       windowStart,
       windowEnd,
       free: windowEnd > windowStart ? [{ start: windowStart, end: windowEnd }] : [],
       leisure: [],
+      keepFree: 0,
       focusUsed: 0,
       chunksPerTask: new Map(),
     };
+    for (const iv of fixed.busy) state.free = subtract(state.free, iv);
+    state.free = state.free.filter((iv) => minutes(iv) >= 5);
 
-    let leisureHad = 0;
-    for (const r of input.routine) {
-      if (!routineAppliesOn(r, date, profile.odd_week_anchor)) continue;
-      const iv = {
-        start: atMinutes(date, timeToMinutes(r.start_time)).getTime(),
-        end: atMinutes(date, timeToMinutes(r.end_time)).getTime(),
-      };
-      state.free = subtract(state.free, iv);
-      if (r.kind === 'leisure') leisureHad += overlapMinutes(iv, dayInterval);
-    }
-    for (const e of blockingEvents) {
-      const iv = eventInterval(e);
-      state.free = subtract(state.free, iv);
-      if (e.kind === 'leisure') leisureHad += overlapMinutes(iv, dayInterval);
-    }
-    for (const g of input.gigs ?? []) {
-      const iv = gigBusy(g);
-      if (iv) state.free = subtract(state.free, iv);
-    }
+    const dayInterval = { start: fixed.dayStart, end: fixed.dayEnd };
     for (const s of active) {
-      const iv = { start: new Date(s.starts_at).getTime(), end: new Date(s.ends_at).getTime() };
-      // work blocks already in the plan get their break too, like the ones placed below
-      const rest = s.kind === 'task' ? profile.break_minutes * MINUTE : 0;
-      state.free = subtract(state.free, { start: iv.start, end: iv.end + rest });
-      const inDay = overlapMinutes(iv, dayInterval);
-      if (s.kind === 'leisure') leisureHad += inDay;
+      if (s.kind !== 'task') continue;
+      const inDay = overlapMinutes({ start: new Date(s.starts_at).getTime(), end: new Date(s.ends_at).getTime() }, dayInterval);
+      state.focusUsed += inDay;
+      if (s.task_id && inDay > 0) state.chunksPerTask.set(s.task_id, (state.chunksPerTask.get(s.task_id) ?? 0) + 1);
+    }
+
+    // 2) keep the free time
+    const rule = leisureRule(profile, date);
+    const need = rule.minutes - fixed.leisureHad;
+    if (rule.when !== 'off' && need >= MIN_LEISURE) {
+      if (rule.when === 'flexible') state.keepFree = need;
       else {
-        state.focusUsed += inDay;
-        if (s.task_id && inDay > 0) {
-          state.chunksPerTask.set(s.task_id, (state.chunksPerTask.get(s.task_id) ?? 0) + 1);
+        for (const w of placeLeisure(rule.when, rule.start, need, fixed)) {
+          state.leisure.push(...intersect(state.free, w));
+          state.free = subtract(state.free, w).filter((iv) => minutes(iv) >= 5);
         }
       }
     }
-    state.free = state.free.filter((iv) => minutes(iv) >= 5);
-
-    // 2) reserve evening leisure
-    const need = profile.leisure_minutes_per_day - leisureHad;
-    if (need >= MIN_LEISURE) reserveLeisure(state, need);
 
     days.push(state);
   }
@@ -228,13 +215,14 @@ export function plan(input: PlannerInput): PlannerResult {
     const limit = overdue ? null : deadlineMs;
     const urgent = limit !== null && limit - nowMs < 2 * DAY;
 
-    q.remaining = placeTask(q.task.id, q.remaining, limit, urgent, days, 'free', profile, suggestions);
-    // a real deadline is at stake: first drop the spreading rule, only then give up leisure
+    q.remaining = placeTask(q.task.id, q.remaining, limit, urgent, days, 'free', true, profile, suggestions);
+    // a real deadline is at stake: first drop the spreading rule, only then give up free time
     if (q.remaining > 0 && limit !== null) {
-      q.remaining = placeTask(q.task.id, q.remaining, limit, true, days, 'free', profile, suggestions);
+      q.remaining = placeTask(q.task.id, q.remaining, limit, true, days, 'free', true, profile, suggestions);
     }
     if (q.remaining > 0 && limit !== null) {
-      q.remaining = placeTask(q.task.id, q.remaining, limit, true, days, 'leisure', profile, suggestions);
+      q.remaining = placeTask(q.task.id, q.remaining, limit, true, days, 'free', false, profile, suggestions);
+      q.remaining = placeTask(q.task.id, q.remaining, limit, true, days, 'leisure', false, profile, suggestions);
     }
     if (q.remaining > 0) {
       warnings.push({
@@ -245,33 +233,140 @@ export function plan(input: PlannerInput): PlannerResult {
     }
   }
 
-  // 4) whatever leisure survived becomes a suggestion
-  for (const d of days) {
-    for (const iv of d.leisure) {
-      if (minutes(iv) >= MIN_LEISURE) {
-        suggestions.push({ kind: 'leisure', taskId: null, start: new Date(iv.start), end: new Date(iv.end) });
-      }
-    }
-  }
-
   suggestions.sort((a, b) => a.start.getTime() - b.start.getTime());
   return { suggestions, warnings };
 }
 
-function reserveLeisure(day: DayState, need: number) {
-  const fits = [...day.free].reverse().find((iv) => minutes(iv) >= need);
-  let reserved: Interval | null = null;
-  if (fits) {
-    reserved = { start: fits.end - need * MINUTE, end: fits.end };
-  } else {
-    const largest = [...day.free].sort((a, b) => minutes(b) - minutes(a))[0];
-    if (largest && minutes(largest) >= MIN_LEISURE) reserved = largest;
+/** What the user asked for on this day: when and how much free time. */
+export function leisureRule(
+  profile: PlannerProfile,
+  day: Date,
+): { when: LeisureWhen | 'off'; start: string | null; minutes: number } {
+  const mode = profile.leisure_when ?? 'before_sleep';
+  if (mode === 'per_day') {
+    const d: LeisureDay | undefined = profile.leisure_days?.[isoWeekday(day) - 1];
+    if (d) return { when: d.when, start: d.start, minutes: d.minutes };
+    return { when: 'evening', start: null, minutes: profile.leisure_minutes_per_day };
   }
-  if (!reserved) return;
-  reserved = { start: ceilStep(reserved.start), end: reserved.end };
-  if (minutes(reserved) < MIN_LEISURE) return;
-  day.free = subtract(day.free, reserved);
-  day.leisure.push(reserved);
+  return { when: mode, start: profile.leisure_start ?? null, minutes: profile.leisure_minutes_per_day };
+}
+
+export interface FixedDay {
+  dayStart: number;
+  dayEnd: number;
+  /** everything already taken: routine, events, gigs, accepted work (with its break) */
+  busy: Interval[];
+  /** free time the user put in the calendar by hand (routine or events of kind leisure) */
+  leisureHad: number;
+  /** end of school or work, including the trip home right after it */
+  schoolEnd: number | null;
+}
+
+type FixedInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs'>;
+
+/** The fixed part of one day, the same for the planner and for drawing the free-time window. */
+export function fixedTime(date: Date, input: FixedInput, routineOn?: (r: RoutineBlock) => boolean): FixedDay {
+  const { profile } = input;
+  const dayStart = atMinutes(date, timeToMinutes(profile.day_start)).getTime();
+  const dayEnd = atMinutes(date, timeToMinutes(profile.day_end)).getTime();
+  const dayInterval = { start: dayStart, end: dayEnd };
+  const applies = routineOn ?? ((r: RoutineBlock) => routineAppliesOn(r, date, profile.odd_week_anchor));
+  const busy: Interval[] = [];
+  let leisureHad = 0;
+  let schoolEnd: number | null = null;
+
+  for (const r of input.routine) {
+    if (!applies(r)) continue;
+    const iv = {
+      start: atMinutes(date, timeToMinutes(r.start_time)).getTime(),
+      end: atMinutes(date, timeToMinutes(r.end_time)).getTime(),
+    };
+    busy.push(iv);
+    if (r.kind === 'leisure') leisureHad += overlapMinutes(iv, dayInterval);
+    if (r.kind === 'class' || r.kind === 'work') schoolEnd = Math.max(schoolEnd ?? 0, iv.end);
+  }
+  const commutes: Interval[] = [];
+  for (const e of input.events) {
+    if (!e.blocks_planning || e.kind === 'reminder') continue;
+    const iv = eventInterval(e);
+    busy.push(iv);
+    if (e.kind === 'leisure') leisureHad += overlapMinutes(iv, dayInterval);
+    if (e.kind === 'commute' && !e.all_day) commutes.push(iv);
+  }
+  for (const g of input.gigs ?? []) {
+    const iv = gigBusy(g);
+    if (iv) busy.push(iv);
+  }
+  for (const s of input.sessions) {
+    if (s.status !== 'planned' && s.status !== 'done') continue;
+    const iv = { start: new Date(s.starts_at).getTime(), end: new Date(s.ends_at).getTime() };
+    if (s.kind === 'leisure') leisureHad += overlapMinutes(iv, dayInterval);
+    // work blocks already in the plan get their break too, like the ones the planner places
+    busy.push(s.kind === 'task' ? { start: iv.start, end: iv.end + profile.break_minutes * MINUTE } : iv);
+  }
+  // the bus home right after school still belongs to school
+  if (schoolEnd !== null) {
+    for (const c of commutes.sort((a, b) => a.start - b.start)) {
+      if (c.start >= schoolEnd - 15 * MINUTE && c.start <= schoolEnd + 90 * MINUTE) schoolEnd = Math.max(schoolEnd, c.end);
+    }
+  }
+  return { dayStart, dayEnd, busy, leisureHad, schoolEnd };
+}
+
+/**
+ * Where the free time goes on a day: as close to the wanted time as the day allows,
+ * in one piece if possible. 'after_school' falls back to the evening on days without school.
+ */
+export function placeLeisure(
+  when: Exclude<LeisureWhen, 'flexible'>,
+  start: string | null,
+  need: number,
+  fixed: FixedDay,
+): Interval[] {
+  let free: Interval[] = [{ start: fixed.dayStart, end: fixed.dayEnd }];
+  for (const iv of fixed.busy) free = subtract(free, iv);
+  free = free.map((iv) => ({ start: ceilStep(iv.start), end: iv.end })).filter((iv) => minutes(iv) >= MIN_LEISURE);
+  if (!free.length) return [];
+
+  const day = new Date(fixed.dayStart);
+  const len = need * MINUTE;
+  const target =
+    when === 'before_sleep'
+      ? fixed.dayEnd - len
+      : when === 'custom' && start
+        ? atMinutes(day, timeToMinutes(start)).getTime()
+        : when === 'after_school' && fixed.schoolEnd !== null
+          ? fixed.schoolEnd
+          : atMinutes(day, EVENING).getTime();
+
+  // later than wanted beats earlier (an hour off before the last class is no free time)
+  const cost = (s: number) => (s >= target ? s - target : 2 * (target - s));
+  let best: Interval | null = null;
+  for (const iv of free) {
+    if (iv.end - iv.start < len) continue;
+    const s = when === 'before_sleep' ? iv.end - len : Math.min(Math.max(target, iv.start), iv.end - len);
+    if (!best || cost(s) < cost(best.start)) best = { start: s, end: s + len };
+  }
+  if (best) return [best];
+
+  // no gap is long enough: the closest pieces
+  const out: Interval[] = [];
+  let left = len;
+  const near = (iv: Interval) => Math.min(Math.abs(iv.start - target), Math.abs(iv.end - target));
+  for (const iv of [...free].sort((a, b) => near(a) - near(b))) {
+    if (left < MIN_LEISURE * MINUTE) break;
+    const take = Math.min(left, iv.end - iv.start);
+    const s = iv.start >= target ? iv.start : iv.end <= target ? iv.end - take : Math.max(iv.start, Math.min(target, iv.end - take));
+    out.push({ start: s, end: s + take });
+    left -= take;
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+
+function intersect(pool: Interval[], w: Interval): Interval[] {
+  return pool
+    .map((iv) => ({ start: Math.max(iv.start, w.start), end: Math.min(iv.end, w.end) }))
+    .filter((iv) => iv.end > iv.start);
 }
 
 function placeTask(
@@ -281,6 +376,7 @@ function placeTask(
   urgent: boolean,
   days: DayState[],
   pool: 'free' | 'leisure',
+  keepFree: boolean,
   profile: PlannerProfile,
   out: Suggestion[],
 ): number {
@@ -291,7 +387,12 @@ function placeTask(
     if (deadlineMs !== null && day.windowStart >= deadlineMs) break;
 
     while (remaining > 0 && (day.chunksPerTask.get(taskId) ?? 0) < maxChunks) {
-      const cap = profile.max_focus_minutes_per_day - day.focusUsed;
+      // 'flexible' free time: leave enough of the day's gaps untouched
+      const spare =
+        keepFree && day.keepFree > 0
+          ? day.free.reduce((m, iv) => m + minutes(iv), 0) - day.keepFree - profile.break_minutes
+          : Infinity;
+      const cap = Math.min(profile.max_focus_minutes_per_day - day.focusUsed, spare);
       const minLen = Math.min(MIN_CHUNK, remaining);
       if (cap < minLen) break;
 

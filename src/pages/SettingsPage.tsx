@@ -11,6 +11,7 @@ import { fmt, fmtDuration, minutesToTime, timeToMinutes, toDateInput, weekParity
 import { getTheme, setTheme, type Theme } from '../lib/theme';
 import { disablePush } from '../lib/push';
 import { NotificationSettings } from './NotificationSettings';
+import { LeisureSettings } from './LeisureSettings';
 import type { ClassPeriod, GigMode, Priority } from '../lib/types';
 import { Field, Segmented } from '../editor/fields';
 
@@ -37,7 +38,6 @@ export function SettingsPage() {
       focus_block_minutes: form.focus_block_minutes,
       break_minutes: form.break_minutes,
       max_focus_minutes_per_day: form.max_focus_minutes_per_day,
-      leisure_minutes_per_day: form.leisure_minutes_per_day,
       planning_horizon_days: form.planning_horizon_days,
       priority_colors: form.priority_colors,
     });
@@ -50,7 +50,7 @@ export function SettingsPage() {
     if (ok) setNewCat({ name: '', color: '#12A39A' });
   };
 
-  const num = (k: 'focus_block_minutes' | 'break_minutes' | 'max_focus_minutes_per_day' | 'leisure_minutes_per_day' | 'planning_horizon_days') => (
+  const num = (k: 'focus_block_minutes' | 'break_minutes' | 'max_focus_minutes_per_day' | 'planning_horizon_days') => (
     <input type="number" value={form[k]} onChange={(e) => set(k, Number(e.target.value))} />
   );
 
@@ -83,11 +83,8 @@ export function SettingsPage() {
             <Field label="Najviac práce za deň (min)" hint={`Teraz ${fmtDuration(form.max_focus_minutes_per_day)}.`}>
               {num('max_focus_minutes_per_day')}
             </Field>
-            <Field label="Voľný čas denne (min)" hint="Plánovač ho drží večer, berie si ho len pri hroziacom termíne.">
-              {num('leisure_minutes_per_day')}
-            </Field>
+            <Field label="Plánovať dopredu (dni)">{num('planning_horizon_days')}</Field>
           </div>
-          <Field label="Plánovať dopredu (dni)">{num('planning_horizon_days')}</Field>
 
           <h3>Farby dôležitosti</h3>
           {([1, 2, 3, 4] as Priority[]).map((p) => (
@@ -112,6 +109,8 @@ export function SettingsPage() {
             </button>
           </div>
         </section>
+
+        <LeisureSettings />
 
         <SchoolSettings />
 

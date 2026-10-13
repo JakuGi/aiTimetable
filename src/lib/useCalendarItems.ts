@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { addDays, isSameDay, startOfDay } from 'date-fns';
 import { useData } from './data';
 import { useEditor } from '../editor/Editor';
-import { EVENT_KINDS, LEISURE_COLOR, ROUTINE_KINDS, priorityColor } from './meta';
+import { EVENT_KINDS, ROUTINE_KINDS, priorityColor } from './meta';
 import { routineAppliesOn } from './planner';
 import { FREELANCE_CATEGORY, FREELANCE_COLOR, fmtMoney, gigEarnings } from './freelance';
 import { atMinutes, fmtTime, timeToMinutes } from './time';
+import { leisureBands, type LeisureBand } from './leisure';
 import type { GridItem, StripItem } from '../components/TimeGrid';
 import type { CalendarEvent, RoutineBlock } from './types';
 
@@ -29,7 +30,8 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
   return useMemo(() => {
     const items: GridItem[] = [];
     const strip: StripItem[] = [];
-    if (!days.length) return { items, strip };
+    let bands: LeisureBand[] = [];
+    if (!days.length) return { items, strip, bands };
     const from = startOfDay(days[0]).getTime();
     const to = addDays(startOfDay(days[days.length - 1]), 1).getTime();
     const anchor = data.profile?.odd_week_anchor ?? '2024-01-01';
@@ -56,7 +58,24 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         });
       }
     }
-    if (opts.routineOnly) return { items, strip };
+    if (opts.routineOnly) {
+      // the usual week: where free time falls given just the routine
+      if (data.profile) {
+        bands = leisureBands(
+          days,
+          { profile: data.profile, routine: data.routine_blocks, events: [], sessions: [], gigs: [] },
+          {
+            includePast: true,
+            now: new Date(0),
+            noGaps: true,
+            routineOn: (r, day) =>
+              r.weekdays.includes(((day.getDay() + 6) % 7) + 1) &&
+              (!opts.parity || r.week_parity === 'all' || r.week_parity === opts.parity),
+          },
+        );
+      }
+      return { items, strip, bands };
+    }
 
     for (const e of data.events) {
       const s = new Date(e.starts_at);
@@ -94,17 +113,15 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
     }
 
     for (const ses of data.sessions) {
-      if (ses.status === 'skipped') continue;
+      // free time is drawn as a faint window now; old accepted free-time blocks stay in history only
+      if (ses.status === 'skipped' || ses.kind === 'leisure') continue;
       const s = new Date(ses.starts_at);
       if (s.getTime() < from || s.getTime() >= to) continue;
       const task = data.taskById(ses.task_id);
-      const color =
-        ses.kind === 'leisure'
-          ? (data.categories.find((c) => c.name === 'Voľný čas')?.color ?? LEISURE_COLOR)
-          : (data.categoryById(task?.category_id ?? null)?.color ?? '#2B4BDB');
+      const color = data.categoryById(task?.category_id ?? null)?.color ?? '#2B4BDB';
       items.push({
         id: `s-${ses.id}`,
-        title: ses.kind === 'leisure' ? 'Voľný čas' : (task?.title ?? 'Úloha'),
+        title: task?.title ?? 'Úloha',
         start: s,
         end: new Date(ses.ends_at),
         color,
@@ -199,6 +216,16 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
       });
     }
 
-    return { items, strip };
+    if (data.profile) {
+      bands = leisureBands(days, {
+        profile: data.profile,
+        routine: data.routine_blocks,
+        events: data.events,
+        sessions: data.sessions,
+        gigs: data.profile.freelance_enabled ? data.gigs : [],
+      });
+    }
+
+    return { items, strip, bands };
   }, [days, data, editor, routineColor, eventColor, opts.routineOnly, opts.parity]);
 }

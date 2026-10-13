@@ -36,7 +36,7 @@ export function RoutinePage() {
   const days = useMemo(() => (narrow ? [week[dayIdx]] : week), [narrow, week, dayIdx]);
   const current = profile ? weekParity(new Date(), profile.odd_week_anchor) : 'odd';
   const [shown, setShown] = useState<'odd' | 'even'>(current);
-  const { items } = useCalendarItems(days, { routineOnly: true, parity: shown });
+  const { items, bands } = useCalendarItems(days, { routineOnly: true, parity: shown });
   const dayStartHour = profile ? Math.floor(timeToMinutes(profile.day_start) / 60) : 7;
 
   const grouped = (Object.keys(ROUTINE_KINDS) as RoutineKind[])
@@ -87,6 +87,7 @@ export function RoutinePage() {
           <TimeGrid
             days={days}
             items={items}
+            bands={bands}
             generic
             scrollToHour={dayStartHour}
             onSwipe={narrow ? (dir) => setDayIdx((i) => (i + dir + 7) % 7) : undefined}
