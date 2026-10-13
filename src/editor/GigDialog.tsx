@@ -23,7 +23,7 @@ import { Field, Segmented } from './fields';
 const MINUTE_CHIPS = [0, 15, 30, 60];
 
 export function GigDialog({ initial, onClose }: { initial: Partial<Gig>; onClose: () => void }) {
-  const { insert, update, remove, categories, profile, sessions, tasks, dropSuggestions } = useData();
+  const { insert, update, remove, categories, profile, sessions, tasks, settleFinishedTask } = useData();
   const editor = useEditor();
   const now = new Date();
   const defaultStart = initial.starts_at ? new Date(initial.starts_at) : addHours(new Date(now.setMinutes(0, 0, 0)), 24);
@@ -115,7 +115,7 @@ export function GigDialog({ initial, onClose }: { initial: Partial<Gig>; onClose
       };
       if (taskId && tasks.some((t) => t.id === taskId)) await update('tasks', taskId, taskRow);
       else taskId = (await insert('tasks', { ...taskRow, priority: 3 }))?.id ?? null;
-      if (taskId && finished) await dropSuggestions(taskId);
+      if (taskId && finished) await settleFinishedTask(taskId);
     } else if (taskId) {
       await remove('tasks', taskId);
       taskId = null;

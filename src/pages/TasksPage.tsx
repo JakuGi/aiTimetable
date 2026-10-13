@@ -11,7 +11,7 @@ type Filter = 'todo' | 'done';
 type Sort = 'deadline' | 'priority';
 
 export function TasksPage() {
-  const { tasks, sessions, profile, categoryById, update, dropSuggestions } = useData();
+  const { tasks, sessions, profile, categoryById, update, settleFinishedTask } = useData();
   const editor = useEditor();
   const notify = useToast();
   const [filter, setFilter] = useState<Filter>('todo');
@@ -32,7 +32,7 @@ export function TasksPage() {
       completed_at: done ? new Date().toISOString() : null,
     });
     if (done) {
-      await dropSuggestions(t.id);
+      await settleFinishedTask(t.id);
       notify(`Hotovo: ${t.title}`, 'success');
     }
   };

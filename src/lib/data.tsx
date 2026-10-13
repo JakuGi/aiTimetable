@@ -41,8 +41,11 @@ interface DataApi extends Omit<Tables, 'profiles'> {
   /** Replace all future "suggested" sessions with a fresh planner result. */
   saveSuggestions: (suggestions: Suggestion[]) => Promise<boolean>;
   setSessionStatus: (ids: string[], status: Session['status']) => Promise<boolean>;
-  /** Remove pending suggestions of one task (e.g. after it was finished). */
-  dropSuggestions: (taskId: string) => Promise<boolean>;
+  /**
+   * A task was finished: its pencil suggestions and accepted blocks still ahead go away,
+   * blocks already under way or over (and not answered) count as done.
+   */
+  settleFinishedTask: (taskId: string) => Promise<boolean>;
   categoryById: (id: string | null) => Category | undefined;
   taskById: (id: string | null) => Task | undefined;
 }
@@ -181,9 +184,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       await fetchTable('sessions');
       return true;
     };
-    const dropSuggestions: DataApi['dropSuggestions'] = async (taskId) => {
-      const { error } = await supabase.from('sessions').delete().eq('task_id', taskId).eq('status', 'suggested');
-      if (error) return fail(`Zmena zlyhala: ${error.message}`);
+    const settleFinishedTask: DataApi['settleFinishedTask'] = async (taskId) => {
+      const now = new Date().toISOString();
+      const steps = [
+        supabase.from('sessions').delete().eq('task_id', taskId).eq('status', 'suggested'),
+        supabase.from('sessions').delete().eq('task_id', taskId).eq('status', 'planned').gt('starts_at', now),
+        supabase.from('sessions').update({ status: 'done' }).eq('task_id', taskId).eq('status', 'planned').lte('starts_at', now),
+      ];
+      for (const step of steps) {
+        const { error } = await step;
+        if (error) return fail(`Zmena zlyhala: ${error.message}`);
+      }
       await fetchTable('sessions');
       return true;
     };
@@ -211,7 +222,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       remove,
       saveSuggestions,
       setSessionStatus,
-      dropSuggestions,
+      settleFinishedTask,
       categoryById: (id) => (id ? data.categories.find((c) => c.id === id) : undefined),
       taskById: (id) => (id ? data.tasks.find((t) => t.id === id) : undefined),
     };

@@ -10,7 +10,7 @@ import { CategorySelect, Field, Segmented } from './fields';
 const ESTIMATES = [15, 30, 60, 90, 120, 180, 240];
 
 export function TaskDialog({ initial, onClose }: { initial: Partial<Task>; onClose: () => void }) {
-  const { insert, update, remove, profile, sessions, dropSuggestions } = useData();
+  const { insert, update, remove, profile, sessions, settleFinishedTask } = useData();
   const [title, setTitle] = useState(initial.title ?? '');
   const [notes, setNotes] = useState(initial.notes ?? '');
   const [categoryId, setCategoryId] = useState(initial.category_id ?? null);
@@ -39,7 +39,7 @@ export function TaskDialog({ initial, onClose }: { initial: Partial<Task>; onClo
     };
     setBusy(true);
     const ok = initial.id ? await update('tasks', initial.id, row) : Boolean(await insert('tasks', row));
-    if (ok && initial.id && nextStatus === 'done') await dropSuggestions(initial.id);
+    if (ok && initial.id && nextStatus === 'done') await settleFinishedTask(initial.id);
     setBusy(false);
     if (ok) onClose();
   };

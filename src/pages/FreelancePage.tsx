@@ -204,7 +204,7 @@ const STATUS_TOAST: Record<Gig['status'], string> = {
 };
 
 function GigRow({ gig: g }: { gig: Gig }) {
-  const { sessions, update, categories, dropSuggestions } = useData();
+  const { sessions, update, categories, settleFinishedTask } = useData();
   const editor = useEditor();
   const notify = useToast();
   // the pill switches at once; the saved row catches up (or rolls it back on error)
@@ -231,7 +231,7 @@ function GigRow({ gig: g }: { gig: Gig }) {
         status: closed ? 'done' : 'todo',
         completed_at: closed ? new Date().toISOString() : null,
       });
-      if (closed) await dropSuggestions(g.task_id);
+      if (closed) await settleFinishedTask(g.task_id);
     }
     notify(`${STATUS_TOAST[next]}: ${g.title}`, next === 'cancelled' ? 'info' : 'success');
   };

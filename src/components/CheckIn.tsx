@@ -164,7 +164,7 @@ function CheckInCard({
     run(async () => {
       if (!(await data.setSessionStatus([session.id], 'done'))) return;
       if (!(await data.update('tasks', task.id, { status: 'done', completed_at: new Date().toISOString() }))) return;
-      await data.dropSuggestions(task.id);
+      await data.settleFinishedTask(task.id);
       notify(`Hotovo: ${task.title}`, 'success');
     });
 
