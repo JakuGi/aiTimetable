@@ -1,4 +1,6 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useBlocker } from 'react-router-dom';
+import { Modal } from '../components/Modal';
 import { useData } from '../lib/data';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
@@ -12,39 +14,120 @@ import { getTheme, setTheme, type Theme } from '../lib/theme';
 import { disablePush } from '../lib/push';
 import { NotificationSettings } from './NotificationSettings';
 import { LeisureSettings } from './LeisureSettings';
-import type { ClassPeriod, GigMode, Priority } from '../lib/types';
+import type { ClassPeriod, GigMode, Priority, Profile } from '../lib/types';
 import { Field, Segmented } from '../editor/fields';
 import { GENDER_OPTIONS, useGender } from '../lib/gender';
+
+/** Settings saved with a button; everything else on the page saves the moment it changes. */
+const EDITABLE = {
+  day_start: 'Začiatok dňa',
+  day_end: 'Koniec dňa',
+  focus_block_minutes: 'Dĺžka bloku práce',
+  break_minutes: 'Prestávka po bloku',
+  max_focus_minutes_per_day: 'Najviac práce za deň',
+  planning_horizon_days: 'Plánovať dopredu',
+  priority_colors: 'Farby dôležitosti',
+  display_name: 'Meno',
+} as const;
+type EditableKey = keyof typeof EDITABLE;
+type Draft = Partial<Pick<Profile, EditableKey>>;
+const PLANNING_KEYS: EditableKey[] = [
+  'day_start',
+  'day_end',
+  'focus_block_minutes',
+  'break_minutes',
+  'max_focus_minutes_per_day',
+  'planning_horizon_days',
+  'priority_colors',
+];
+
+/** what gets stored, so "08:00" and "08:00:00" or "Ján " and "Ján" don't count as a change */
+const stored = (k: EditableKey, v: unknown) =>
+  JSON.stringify(
+    k === 'day_start' || k === 'day_end' ? String(v).slice(0, 5) : k === 'display_name' ? (String(v ?? '').trim() || null) : v,
+  );
 
 export function SettingsPage() {
   const { profile, update, categories, insert } = useData();
   const { user } = useAuth();
   const notify = useToast();
-  const [form, setForm] = useState(profile);
+  // only what the user changed; other fields keep following the saved profile (and realtime updates)
+  const [draft, setDraft] = useState<Draft>({});
+  const [periodsDraft, setPeriodsDraft] = useState<ClassPeriod[] | null>(null);
+  const [saving, setSaving] = useState(false);
   const [newCat, setNewCat] = useState({ name: '', color: '#12A39A' });
   const [theme, setThemeState] = useState<Theme>(getTheme());
   const g = useGender();
 
-  useEffect(() => setForm(profile), [profile]);
+  const changed = profile
+    ? (Object.keys(draft) as EditableKey[]).filter((k) => stored(k, draft[k]) !== stored(k, profile[k]))
+    : [];
+  const savedPeriods = profile?.class_periods ?? DEFAULT_CLASS_PERIODS;
+  const periodsChanged = periodsDraft !== null && JSON.stringify(periodsDraft) !== JSON.stringify(savedPeriods);
+  const dirty = changed.length > 0 || periodsChanged;
+  const changedLabels = [...changed.map((k) => EDITABLE[k]), ...(periodsChanged ? ['Zvonenie'] : [])];
 
-  if (!form || !profile) return <div className="page">Načítavam…</div>;
+  // leaving the page (link, back button) with unsaved changes asks first
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
+  // closing the tab or reloading: the browser's own warning
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm({ ...form, [k]: v });
+  if (!profile) return <div className="page">Načítavam…</div>;
+  const form = { ...profile, ...draft };
+  const periods = periodsDraft ?? savedPeriods;
 
-  const saveProfile = async () => {
-    if (form.day_end <= form.day_start) return notify('Koniec dňa musí byť po jeho začiatku.', 'error');
-    const ok = await update('profiles', profile.id, {
-      display_name: form.display_name?.trim() || null,
-      day_start: form.day_start.slice(0, 5),
-      day_end: form.day_end.slice(0, 5),
-      focus_block_minutes: form.focus_block_minutes,
-      break_minutes: form.break_minutes,
-      max_focus_minutes_per_day: form.max_focus_minutes_per_day,
-      planning_horizon_days: form.planning_horizon_days,
-      priority_colors: form.priority_colors,
-    });
-    if (ok) notify('Nastavenia uložené.', 'success');
+  const set = <K extends EditableKey>(k: K, v: Profile[K]) => setDraft((d) => ({ ...d, [k]: v }));
+
+  const discard = () => {
+    setDraft({});
+    setPeriodsDraft(null);
   };
+
+  const saveAll = async (): Promise<boolean> => {
+    if (!dirty) return true;
+    if (form.day_end.slice(0, 5) <= form.day_start.slice(0, 5)) {
+      notify('Koniec dňa musí byť po jeho začiatku.', 'error');
+      return false;
+    }
+    if (periodsChanged) {
+      for (let i = 0; i < periods.length; i++) {
+        const p = periods[i];
+        if (timeToMinutes(p.end) <= timeToMinutes(p.start)) {
+          notify(`Zvonenie, ${i + 1}. hodina: koniec musí byť po začiatku.`, 'error');
+          return false;
+        }
+        if (i > 0 && timeToMinutes(p.start) < timeToMinutes(periods[i - 1].end)) {
+          notify(`Zvonenie: ${i + 1}. hodina začína skôr, než skončí ${i}.`, 'error');
+          return false;
+        }
+      }
+    }
+    const patch: Partial<Profile> = {};
+    for (const k of changed) (patch as Record<string, unknown>)[k] = JSON.parse(stored(k, form[k]));
+    if (periodsChanged) patch.class_periods = periods;
+    setSaving(true);
+    const ok = await update('profiles', profile.id, patch);
+    setSaving(false);
+    if (!ok) return false;
+    discard();
+    notify('Nastavenia uložené.', 'success');
+    return true;
+  };
+
+  const planningDirty = changed.some((k) => PLANNING_KEYS.includes(k));
+  const saveButton = (
+    <button className={`btn btn-primary${dirty ? ' needs-save' : ''}`} onClick={saveAll} disabled={!dirty || saving}>
+      {saving ? 'Ukladám…' : dirty ? 'Uložiť nastavenia' : 'Všetko uložené'}
+    </button>
+  );
 
   const addCategory = async () => {
     if (!newCat.name.trim()) return;
@@ -65,8 +148,10 @@ export function SettingsPage() {
       </header>
 
       <div className="settings">
-        <section className="card-section">
-          <h2>Ako plánovať</h2>
+        <section className={`card-section${planningDirty ? ' is-dirty' : ''}`}>
+          <h2>
+            Ako plánovať {planningDirty && <span className="unsaved-tag">neuložené</span>}
+          </h2>
           <div className="row-2">
             <Field label="Deň začína o">
               <input type="time" value={form.day_start.slice(0, 5)} onChange={(e) => set('day_start', e.target.value)} />
@@ -105,16 +190,12 @@ export function SettingsPage() {
               />
             </div>
           ))}
-          <div className="actions">
-            <button className="btn btn-primary" onClick={saveProfile}>
-              Uložiť nastavenia
-            </button>
-          </div>
+          <div className="actions">{saveButton}</div>
         </section>
 
         <LeisureSettings />
 
-        <SchoolSettings />
+        <SchoolSettings periods={periods} onChange={setPeriodsDraft} dirty={periodsChanged} saveButton={saveButton} />
 
         <FreelanceSettings />
 
@@ -164,8 +245,10 @@ export function SettingsPage() {
 
         <NotificationSettings />
 
-        <section className="card-section">
-          <h2>Účet</h2>
+        <section className={`card-section${changed.includes('display_name') ? ' is-dirty' : ''}`}>
+          <h2>
+            Účet {changed.includes('display_name') && <span className="unsaved-tag">neuložené</span>}
+          </h2>
           <Field label="Meno">
             <input value={form.display_name ?? ''} onChange={(e) => set('display_name', e.target.value)} maxLength={80} />
           </Field>
@@ -181,9 +264,7 @@ export function SettingsPage() {
             {g('Prihlásený', 'Prihlásená')} ako {user?.email}
           </p>
           <div className="actions">
-            <button className="btn btn-primary" onClick={saveProfile}>
-              Uložiť meno
-            </button>
+            {saveButton}
             <button
               className="btn btn-ghost"
               onClick={async () => {
@@ -197,6 +278,68 @@ export function SettingsPage() {
           </div>
         </section>
       </div>
+
+      {dirty && (
+        <div className="save-bar" role="region" aria-label="Neuložené zmeny">
+          <span className="save-dot" aria-hidden="true" />
+          <p>
+            <b>Neuložené zmeny</b>
+            <span>{changedLabels.join(', ')}</span>
+          </p>
+          <button className="btn btn-ghost" onClick={discard} disabled={saving}>
+            Zahodiť
+          </button>
+          <button className="btn btn-primary" onClick={saveAll} disabled={saving}>
+            {saving ? 'Ukladám…' : 'Uložiť nastavenia'}
+          </button>
+        </div>
+      )}
+
+      {blocker.state === 'blocked' && (
+        <Modal
+          title="Neuložené nastavenia"
+          onClose={() => blocker.reset()}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn btn-danger-ghost"
+                onClick={() => {
+                  discard();
+                  blocker.proceed();
+                }}
+              >
+                Zahodiť zmeny
+              </button>
+              <span className="spacer" />
+              <button type="button" className="btn btn-ghost" onClick={() => blocker.reset()}>
+                Zostať
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={saving}
+                onClick={async () => {
+                  if (await saveAll()) blocker.proceed();
+                  else blocker.reset();
+                }}
+              >
+                Uložiť a odísť
+              </button>
+            </>
+          }
+        >
+          <p>
+            {g('Zmenil si', 'Zmenila si')} nastavenia, ktoré ešte nie sú uložené:
+          </p>
+          <ul className="unsaved-list">
+            {changedLabels.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+          <p className="muted small">Chceš ich pred odchodom uložiť, alebo zahodiť?</p>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -225,11 +368,19 @@ function CategoryRow({ id }: { id: string }) {
 }
 
 /** Bell schedule and odd/even weeks: the two things that make entering classes fast. */
-function SchoolSettings() {
+function SchoolSettings({
+  periods,
+  onChange: setPeriods,
+  dirty,
+  saveButton,
+}: {
+  periods: ClassPeriod[];
+  onChange: (p: ClassPeriod[]) => void;
+  dirty: boolean;
+  saveButton: ReactNode;
+}) {
   const { profile, update } = useData();
   const notify = useToast();
-  const [periods, setPeriods] = useState<ClassPeriod[]>(profile?.class_periods ?? DEFAULT_CLASS_PERIODS);
-  useEffect(() => setPeriods(profile?.class_periods ?? DEFAULT_CLASS_PERIODS), [profile?.class_periods]);
   if (!profile) return null;
 
   const thisMonday = weekStart(new Date());
@@ -244,7 +395,7 @@ function SchoolSettings() {
   };
 
   const setPeriod = (i: number, field: keyof ClassPeriod, v: string) =>
-    setPeriods((ps) => ps.map((x, j) => (j === i ? { ...x, [field]: v } : x)));
+    setPeriods(periods.map((x, j) => (j === i ? { ...x, [field]: v } : x)));
 
   const addPeriod = () => {
     const last = periods[periods.length - 1];
@@ -252,19 +403,9 @@ function SchoolSettings() {
     setPeriods([...periods, { start: minutesToTime(start), end: minutesToTime(Math.min(start + 45, 23 * 60 + 59)) }]);
   };
 
-  const savePeriods = async () => {
-    for (let i = 0; i < periods.length; i++) {
-      const p = periods[i];
-      if (timeToMinutes(p.end) <= timeToMinutes(p.start)) return notify(`${i + 1}. hodina: koniec musí byť po začiatku.`, 'error');
-      if (i > 0 && timeToMinutes(p.start) < timeToMinutes(periods[i - 1].end))
-        return notify(`${i + 1}. hodina začína skôr, než skončí ${i}.`, 'error');
-    }
-    if (await update('profiles', profile.id, { class_periods: periods })) notify('Zvonenie uložené.', 'success');
-  };
-
   return (
-    <section className="card-section">
-      <h2>Škola</h2>
+    <section className={`card-section${dirty ? ' is-dirty' : ''}`}>
+      <h2>Škola {dirty && <span className="unsaved-tag">neuložené zvonenie</span>}</h2>
       <Field label={`Tento týždeň (${fmt(thisMonday, 'd. M.')} – ${fmt(addDays(thisMonday, 6), 'd. M.')}) je`}>
         <Segmented
           label="Párnosť tohto týždňa"
@@ -305,9 +446,7 @@ function SchoolSettings() {
         <button className="btn btn-ghost" onClick={() => setPeriods(DEFAULT_CLASS_PERIODS)}>
           Predvolené zvonenie
         </button>
-        <button className="btn btn-primary" onClick={savePeriods}>
-          Uložiť zvonenie
-        </button>
+        {saveButton}
       </div>
     </section>
   );

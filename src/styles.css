@@ -3280,3 +3280,103 @@ body:has(.checkin) .toasts {
   font-weight: 600;
   opacity: 1;
 }
+
+/* ------------------------------------------------------------------ unsaved settings */
+
+.card-section.is-dirty {
+  border-color: color-mix(in srgb, var(--margin) 55%, var(--line-strong));
+  box-shadow: inset 4px 0 0 var(--margin);
+}
+.unsaved-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  vertical-align: middle;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--margin);
+  background: color-mix(in srgb, var(--margin) 12%, var(--surface));
+  border-radius: 999px;
+}
+.btn.needs-save {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pen) 25%, transparent);
+  animation: needs-save 1.6s ease-in-out infinite;
+}
+@keyframes needs-save {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--pen) 10%, transparent);
+  }
+}
+.save-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  max-width: 760px;
+  margin: 16px auto 0;
+  padding: 12px 14px;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow), 0 0 0 3px color-mix(in srgb, var(--margin) 45%, transparent);
+  animation: save-bar-in 0.18s ease-out;
+}
+@keyframes save-bar-in {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+.save-bar p {
+  flex: 1;
+  min-width: 180px;
+  margin: 0;
+  display: grid;
+  font-size: 14px;
+}
+.save-bar p span {
+  font-size: 12.5px;
+  opacity: 0.8;
+}
+.save-bar .btn-ghost {
+  background: transparent;
+  color: var(--paper);
+  border-color: color-mix(in srgb, var(--paper) 40%, transparent);
+}
+.save-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--margin);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--margin) 30%, transparent);
+}
+.unsaved-list {
+  margin: 6px 0 10px;
+  padding-left: 20px;
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .save-bar {
+    bottom: 8px;
+    margin: 12px 0 0;
+  }
+  .save-bar p {
+    min-width: 0;
+    flex-basis: calc(100% - 22px);
+  }
+  .save-bar .btn {
+    flex: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn.needs-save,
+  .save-bar {
+    animation: none;
+  }
+}

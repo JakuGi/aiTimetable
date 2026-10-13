@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import {
   CheckEmailPage,
@@ -55,41 +55,56 @@ function NotConfigured() {
   );
 }
 
+function Shell() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <RecoveryRedirect />
+        <Outlet />
+      </AuthProvider>
+    </ToastProvider>
+  );
+}
+
+function SignedIn() {
+  return (
+    <RequireAuth>
+      <DataProvider>
+        <EditorProvider>
+          <Layout />
+        </EditorProvider>
+      </DataProvider>
+    </RequireAuth>
+  );
+}
+
+// a data router, so a page can hold the user back when leaving with unsaved changes (useBlocker)
+const router = createBrowserRouter([
+  {
+    element: <Shell />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <RegisterPage /> },
+      { path: '/check-email', element: <CheckEmailPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
+      {
+        element: <SignedIn />,
+        children: [
+          { index: true, element: <WeekPage /> },
+          { path: 'month', element: <MonthPage /> },
+          { path: 'tasks', element: <TasksPage /> },
+          { path: 'routine', element: <RoutinePage /> },
+          { path: 'settings', element: <SettingsPage /> },
+          { path: 'freelance', element: <FreelancePage /> },
+        ],
+      },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+]);
+
 export default function App() {
   if (!isConfigured) return <NotConfigured />;
-  return (
-    <BrowserRouter>
-      <ToastProvider>
-        <AuthProvider>
-          <RecoveryRedirect />
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/check-email" element={<CheckEmailPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route
-              element={
-                <RequireAuth>
-                  <DataProvider>
-                    <EditorProvider>
-                      <Layout />
-                    </EditorProvider>
-                  </DataProvider>
-                </RequireAuth>
-              }
-            >
-              <Route index element={<WeekPage />} />
-              <Route path="month" element={<MonthPage />} />
-              <Route path="tasks" element={<TasksPage />} />
-              <Route path="routine" element={<RoutinePage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="freelance" element={<FreelancePage />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthProvider>
-      </ToastProvider>
-    </BrowserRouter>
-  );
+  return <RouterProvider router={router} />;
 }
