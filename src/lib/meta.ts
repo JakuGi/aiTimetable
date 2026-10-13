@@ -4,7 +4,7 @@ export const ROUTINE_KINDS: Record<RoutineKind, { label: string; color: string }
   class: { label: 'Vyučovanie', color: '#2B4BDB' },
   work: { label: 'Práca, brigáda', color: '#7A5AF8' },
   leisure: { label: 'Voľný čas', color: '#E8A317' },
-  other: { label: 'Iné, som zaneprázdnený', color: '#5E6B85' },
+  other: { label: 'Iné, nemám čas', color: '#5E6B85' },
 };
 
 export const PARITY_LABELS: Record<WeekParity, string> = {

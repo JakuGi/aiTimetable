@@ -4,6 +4,7 @@ import { useData } from '../lib/data';
 import { fmt, fmtDuration, fmtTime, fromLocalInput, toLocalInput } from '../lib/time';
 import { sessionMinutes } from '../lib/planner';
 import type { Session } from '../lib/types';
+import { useGender } from '../lib/gender';
 
 const STATUS_TEXT: Record<Session['status'], string> = {
   suggested: 'Návrh plánovača, zatiaľ neprijatý.',
@@ -22,6 +23,7 @@ export function SessionDialog({
   onOpenTask: (id: string) => void;
 }) {
   const { taskById, update, remove, setSessionStatus } = useData();
+  const g = useGender();
   const task = taskById(session.task_id);
   const [start, setStart] = useState(toLocalInput(session.starts_at));
   const [end, setEnd] = useState(toLocalInput(session.ends_at));
@@ -61,7 +63,7 @@ export function SessionDialog({
           {session.status === 'planned' && session.kind === 'task' && (
             <>
               <button type="button" className="btn btn-ghost" onClick={() => act('skipped')}>
-                Nestihol som
+                {g('Nestihol som', 'Nestihla som')}
               </button>
               <button type="button" className="btn btn-primary" onClick={() => act('done')}>
                 Hotovo

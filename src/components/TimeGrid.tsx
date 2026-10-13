@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type MouseEvent,
+  type PointerEvent,
   type TouchEvent,
 } from 'react';
 import { isSameDay, isToday } from 'date-fns';
@@ -14,7 +15,7 @@ import type { LeisureBand } from '../lib/leisure';
 import { textOn } from '../lib/meta';
 import { useGridDrag } from './useGridDrag';
 
-export type GridVariant = 'routine' | 'solid' | 'pencil' | 'done';
+export type GridVariant = 'routine' | 'solid' | 'pencil' | 'done' | 'reserved';
 
 export interface GridItem {
   id: string;
@@ -26,6 +27,8 @@ export interface GridItem {
   variant: GridVariant;
   /** small colored dot, e.g. task priority */
   marker?: string;
+  /** work that had to go into free time reserved by hand */
+  intrudes?: boolean;
   onClick?: () => void;
   /** makes the block draggable and resizable; resolve false to undo the move */
   onMove?: (start: Date, end: Date) => Promise<boolean> | void;
@@ -52,6 +55,8 @@ interface Props {
   /** show weekday names only (a generic week, not concrete dates) */
   generic?: boolean;
   onSlotClick?: (start: Date) => void;
+  /** drawing mode: drag with the mouse (or tap on a touch screen) to mark a time range */
+  onDraw?: (start: Date, end: Date) => void;
   /** horizontal swipe on touch screens: -1 = previous, 1 = next */
   onSwipe?: (dir: 1 | -1) => void;
 }
@@ -78,6 +83,16 @@ function layoutDay(day: Date, items: GridItem[], fromHour: number, toHour: numbe
     .sort((a, b) => a.s - b.s || b.e - a.e);
 
   const placed: Placed[] = [];
+  // free time drawn by hand spans the whole column; anything that had to go there sits on top of it
+  for (const v of visible.filter((x) => x.item.variant === 'reserved')) {
+    placed.push({
+      ...v.item,
+      top: ((v.s - dayFrom) / (60 * MINUTE)) * HOUR_PX,
+      height: Math.max(((v.e - v.s) / (60 * MINUTE)) * HOUR_PX, 18),
+      col: 0,
+      cols: 1,
+    });
+  }
   let cluster: Placed[] = [];
   let columnsEnd: number[] = [];
   let clusterEnd = -Infinity;
@@ -89,6 +104,7 @@ function layoutDay(day: Date, items: GridItem[], fromHour: number, toHour: numbe
   };
 
   for (const v of visible) {
+    if (v.item.variant === 'reserved') continue;
     if (v.s >= clusterEnd) flush();
     let col = columnsEnd.findIndex((end) => end <= v.s);
     if (col === -1) {
@@ -120,6 +136,7 @@ export function TimeGrid({
   scrollToHour = 7,
   generic = false,
   onSlotClick,
+  onDraw,
   onSwipe,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -195,10 +212,50 @@ export function TimeGrid({
   const hasStrip = strip.length > 0;
 
   const handleColumnClick = (day: Date, e: MouseEvent<HTMLDivElement>) => {
-    if (!onSlotClick || e.target !== e.currentTarget) return;
+    if (e.target !== e.currentTarget) return;
     const y = e.nativeEvent.offsetY;
     const minutes = fromHour * 60 + Math.floor(((y / HOUR_PX) * 60) / 15) * 15;
-    onSlotClick(atMinutes(day, minutes));
+    if (onDraw) {
+      // a mouse drag already drew it; a tap (touch) or a plain click marks one hour
+      if (drawn.current) return void (drawn.current = false);
+      const end = Math.min(minutes + 60, toHour * 60);
+      return onDraw(atMinutes(day, minutes), atMinutes(day, end));
+    }
+    onSlotClick?.(atMinutes(day, minutes));
+  };
+
+  // drawing with the mouse: press, drag over the time, release
+  const [drawing, setDrawing] = useState<{ di: number; from: number; to: number } | null>(null);
+  const drawn = useRef(false);
+  const minuteAt = (di: number, clientY: number) => {
+    const col = columns.current[di];
+    if (!col) return 0;
+    const y = clientY - col.getBoundingClientRect().top;
+    return Math.max(fromHour * 60, Math.min(toHour * 60, fromHour * 60 + Math.round(((y / HOUR_PX) * 60) / 15) * 15));
+  };
+  const startDraw = (di: number, e: PointerEvent<HTMLDivElement>) => {
+    if (!onDraw || e.pointerType !== 'mouse' || e.button !== 0 || e.target !== e.currentTarget) return;
+    e.preventDefault();
+    const from = Math.floor(minuteAt(di, e.clientY) / 15) * 15;
+    let current = { di, from, to: from };
+    setDrawing(current);
+    const move = (ev: globalThis.PointerEvent) => {
+      current = { ...current, to: minuteAt(di, ev.clientY) };
+      setDrawing(current);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDrawing(null);
+      const a = Math.min(current.from, current.to);
+      const b = Math.max(current.from, current.to);
+      if (b - a >= 15) {
+        drawn.current = true;
+        onDraw(atMinutes(days[di], a), atMinutes(days[di], b));
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   };
 
   // swipe between days on touch screens (ignored while dragging a block)
@@ -292,9 +349,24 @@ export function TimeGrid({
                 ref={(el) => {
                   columns.current[di] = el;
                 }}
-                className={`grid-col${today ? ' is-today' : ''}`}
+                className={`grid-col${today ? ' is-today' : ''}${onDraw ? ' is-drawing' : ''}`}
                 onClick={(e) => handleColumnClick(d, e)}
+                onPointerDown={onDraw ? (e) => startDraw(di, e) : undefined}
               >
+                {drawing && drawing.di === di && Math.abs(drawing.to - drawing.from) >= 15 && (
+                  <div
+                    className="draw-preview"
+                    style={{
+                      top: ((Math.min(drawing.from, drawing.to) - fromHour * 60) / 60) * HOUR_PX,
+                      height: (Math.abs(drawing.to - drawing.from) / 60) * HOUR_PX,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <span>
+                      {minutesToTime(Math.min(drawing.from, drawing.to))}–{minutesToTime(Math.max(drawing.from, drawing.to))}
+                    </span>
+                  </div>
+                )}
                 {bands
                   .filter((b) => isSameDay(b.day, d))
                   .map((b) => {
@@ -304,14 +376,14 @@ export function TimeGrid({
                     return (
                       <div
                         key={b.id}
-                        className={`leisure-band${b.gap ? ' is-gap' : ''}`}
+                        className={`leisure-band${b.gap ? ' is-gap' : ''}${b.hint ? ' is-hint' : ''}`}
                         style={{ top, height }}
-                        title={`${b.gap ? 'Voľno medzi prácou' : 'Voľný čas'}, ${fmtTime(b.start)}–${fmtTime(b.end)}`}
+                        title={`${b.gap ? 'Voľno medzi prácou' : b.hint ? 'Tip na voľný čas' : 'Voľný čas'}, ${fmtTime(b.start)}–${fmtTime(b.end)}`}
                         aria-hidden="true"
                       >
                         {height >= 22 && (
                           <span className="leisure-label">
-                            {b.gap ? 'voľno' : 'voľný čas'}
+                            {b.gap ? 'voľno' : b.hint ? 'tip na voľno' : 'voľný čas'}
                             {height >= 40 && <span className="leisure-len"> {fmtDuration(mins)}</span>}
                           </span>
                         )}
@@ -322,7 +394,7 @@ export function TimeGrid({
                   <button
                     type="button"
                     key={`${p.id}-${di}`}
-                    className={`block block-${p.variant}${p.onMove ? ' is-movable' : ''}${preview?.id === p.id ? ' is-source' : ''}`}
+                    className={`block block-${p.variant}${p.intrudes ? ' is-intruding' : ''}${p.onMove ? ' is-movable' : ''}${preview?.id === p.id ? ' is-source' : ''}`}
                     style={
                       {
                         '--c': p.color,

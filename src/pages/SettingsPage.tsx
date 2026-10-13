@@ -14,6 +14,7 @@ import { NotificationSettings } from './NotificationSettings';
 import { LeisureSettings } from './LeisureSettings';
 import type { ClassPeriod, GigMode, Priority } from '../lib/types';
 import { Field, Segmented } from '../editor/fields';
+import { GENDER_OPTIONS, useGender } from '../lib/gender';
 
 export function SettingsPage() {
   const { profile, update, categories, insert } = useData();
@@ -22,6 +23,7 @@ export function SettingsPage() {
   const [form, setForm] = useState(profile);
   const [newCat, setNewCat] = useState({ name: '', color: '#12A39A' });
   const [theme, setThemeState] = useState<Theme>(getTheme());
+  const g = useGender();
 
   useEffect(() => setForm(profile), [profile]);
 
@@ -167,7 +169,17 @@ export function SettingsPage() {
           <Field label="Meno">
             <input value={form.display_name ?? ''} onChange={(e) => set('display_name', e.target.value)} maxLength={80} />
           </Field>
-          <p className="small muted">Prihlásený ako {user?.email}</p>
+          <Field label="Oslovovanie" hint="Ako ťa appka oslovuje v tlačidlách a správach.">
+            <Segmented
+              label="Oslovovanie"
+              value={profile.gender ?? ''}
+              onChange={(v) => v && update('profiles', profile.id, { gender: v })}
+              options={GENDER_OPTIONS.map((o) => ({ value: o.value, label: `${o.label} (${o.example.split(',')[0]})` }))}
+            />
+          </Field>
+          <p className="small muted">
+            {g('Prihlásený', 'Prihlásená')} ako {user?.email}
+          </p>
           <div className="actions">
             <button className="btn btn-primary" onClick={saveProfile}>
               Uložiť meno

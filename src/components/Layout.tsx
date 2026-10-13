@@ -3,6 +3,7 @@ import { Brand } from './Brand';
 import { useReminders } from '../lib/useReminders';
 import { useData } from '../lib/data';
 import { CheckInPanel } from './CheckIn';
+import { GenderPrompt } from '../lib/gender';
 
 const NAV = [
   { to: '/', label: 'Rozvrh', icon: 'M3 5h14v12H3zM3 9h14M7 3v4M13 3v4', end: true },
@@ -42,6 +43,7 @@ export function Layout() {
       </nav>
       <main className="main">{loading ? <div className="loading">Načítavam tvoj rozvrh…</div> : <Outlet />}</main>
       {!loading && <CheckInPanel />}
+      {!loading && <GenderPrompt />}
     </div>
   );
 }

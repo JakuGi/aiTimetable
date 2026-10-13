@@ -12,6 +12,10 @@ export interface Profile {
   leisure_when: LeisureMode;
   leisure_start: string; // "HH:MM[:SS]", for leisure_when = 'custom'
   leisure_days: LeisureDay[]; // Monday..Sunday, for leisure_when = 'per_day'
+  /** false: the planner keeps only the free time drawn by hand (FreeBlock) */
+  leisure_auto: boolean;
+  /** how the app talks to the user: "urobil" / "urobila"; null = not chosen yet */
+  gender: Gender | null;
   planning_horizon_days: number;
   priority_colors: string[];
   class_periods: ClassPeriod[];
@@ -30,6 +34,17 @@ export interface Profile {
   quiet_enabled: boolean;
   quiet_from: string;
   quiet_to: string;
+}
+
+export type Gender = 'm' | 'f';
+
+/** Free time drawn into the timetable by hand: kept empty, given up last. */
+export interface FreeBlock {
+  id: string;
+  user_id: string;
+  starts_at: string;
+  ends_at: string;
+  note: string | null;
 }
 
 /** When free time is kept: a preferred window the planner leaves empty. */
@@ -185,4 +200,5 @@ export type TableName =
   | 'events'
   | 'sessions'
   | 'event_templates'
-  | 'gigs';
+  | 'gigs'
+  | 'free_blocks';

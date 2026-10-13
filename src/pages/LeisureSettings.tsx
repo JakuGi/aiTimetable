@@ -5,7 +5,7 @@ import { leisureRule } from '../lib/planner';
 import { fmtDuration, fmtTime, WEEKDAY_LONG, WEEKDAY_SHORT, weekDays, weekStart } from '../lib/time';
 import type { LeisureDay, LeisureMode, LeisureWhen, Profile } from '../lib/types';
 
-type Prefs = Pick<Profile, 'leisure_when' | 'leisure_start' | 'leisure_minutes_per_day' | 'leisure_days'>;
+type Prefs = Pick<Profile, 'leisure_when' | 'leisure_start' | 'leisure_minutes_per_day' | 'leisure_days' | 'leisure_auto'>;
 
 const AMOUNTS = [30, 60, 90, 120, 180];
 const DAY_AMOUNTS = [30, 45, 60, 90, 120, 180, 240];
@@ -29,11 +29,18 @@ export function LeisureSettings() {
     const p = { ...profile, ...prefs };
     const bands = leisureBands(
       week,
-      { profile: p, routine: data.routine_blocks, events: data.events, sessions: data.sessions, gigs: p.freelance_enabled ? data.gigs : [] },
+      {
+        profile: p,
+        routine: data.routine_blocks,
+        events: data.events,
+        sessions: data.sessions,
+        gigs: p.freelance_enabled ? data.gigs : [],
+        freeBlocks: data.free_blocks,
+      },
       { includePast: true, now: new Date(0) },
     );
     return week.map((d, i) => ({ i, rule: leisureRule(p, d), bands: bands.filter((b) => b.day === d) }));
-  }, [profile, prefs, week, data.routine_blocks, data.events, data.sessions, data.gigs]);
+  }, [profile, prefs, week, data.routine_blocks, data.events, data.sessions, data.gigs, data.free_blocks]);
 
   if (!profile || !prefs) return null;
 
@@ -72,7 +79,36 @@ export function LeisureSettings() {
       </p>
 
       <div className="field">
-        <span className="field-label">Kedy ho chceš</span>
+        <span className="field-label">Kto ho určuje</span>
+        <div className="leisure-modes two" role="radiogroup" aria-label="Kto určuje voľný čas">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={prefs.leisure_auto}
+            className="leisure-mode"
+            onClick={() => save({ leisure_auto: true })}
+          >
+            <b>Automaticky</b>
+            <span>plánovač drží zelené okno podľa nastavenia nižšie, a k tomu aj voľno, ktoré si nakreslíš</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!prefs.leisure_auto}
+            className="leisure-mode"
+            onClick={() => save({ leisure_auto: false })}
+          >
+            <b>Sám si ho nakreslím</b>
+            <span>
+              drží sa len voľno nakreslené v Rozvrhu (tlačidlo Vyhradiť voľno); zelené okná ostanú ako tip, kam by sa
+              hodilo
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div className="field">
+        <span className="field-label">{prefs.leisure_auto ? 'Kedy ho chceš' : 'Kde ti ho ukazovať ako tip'}</span>
         <div className="leisure-modes" role="radiogroup" aria-label="Kedy chceš voľný čas">
           {MODES.map((m) => (
             <button

@@ -6,6 +6,7 @@ import type {
   CalendarEvent,
   Category,
   EventTemplate,
+  FreeBlock,
   Gig,
   Profile,
   RoutineBlock,
@@ -24,6 +25,7 @@ interface Tables {
   sessions: Session[];
   event_templates: EventTemplate[];
   gigs: Gig[];
+  free_blocks: FreeBlock[];
 }
 
 type Row<T extends TableName> = Tables[T][number];
@@ -54,6 +56,7 @@ const ORDER: Record<TableName, { column: string; ascending: boolean }> = {
   sessions: { column: 'starts_at', ascending: true },
   event_templates: { column: 'start_time', ascending: true },
   gigs: { column: 'created_at', ascending: false },
+  free_blocks: { column: 'starts_at', ascending: true },
 };
 
 const TABLES = Object.keys(ORDER) as TableName[];
@@ -66,6 +69,7 @@ const EMPTY: Tables = {
   sessions: [],
   event_templates: [],
   gigs: [],
+  free_blocks: [],
 };
 
 const DataContext = createContext<DataApi | null>(null);
@@ -199,6 +203,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       sessions: data.sessions,
       event_templates: data.event_templates,
       gigs: data.gigs,
+      free_blocks: data.free_blocks,
       loading,
       insert,
       insertMany,

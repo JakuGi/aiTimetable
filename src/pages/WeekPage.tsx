@@ -6,7 +6,9 @@ import { Modal } from '../components/Modal';
 import { useData } from '../lib/data';
 import { useEditor } from '../editor/Editor';
 import { useCalendarItems } from '../lib/useCalendarItems';
-import { coveredMinutes, plan, type PlannerWarning } from '../lib/planner';
+import { coveredMinutes, plan, type PlannerWarning, type Suggestion } from '../lib/planner';
+import { NowCard } from '../components/NowCard';
+import { fmtTime } from '../lib/time';
 import { PRIORITY_LABELS, priorityColor } from '../lib/meta';
 import {
   fmt,
@@ -41,6 +43,8 @@ export function WeekPage() {
   const [planning, setPlanning] = useState(false);
   const [warnings, setWarnings] = useState<PlannerWarning[]>([]);
   const [sheet, setSheet] = useState(false);
+  const [drawFree, setDrawFree] = useState(false);
+  const [intrusions, setIntrusions] = useState<Suggestion[]>([]);
 
   const days = useMemo(
     () =>
@@ -76,16 +80,25 @@ export function WeekPage() {
       sessions: data.sessions,
       tasks: data.tasks,
       gigs: data.profile.freelance_enabled ? data.gigs : [],
+      freeBlocks: data.free_blocks,
     });
     const ok = await data.saveSuggestions(result.suggestions);
     setPlanning(false);
     if (!ok) return;
     setWarnings(result.warnings);
+    setIntrusions(result.intrusions);
+    if (result.intrusions.length) {
+      const taken = result.intrusions.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60_000, 0);
+      notify(`Pozor: kvôli termínu som musel zobrať ${fmtDuration(taken)} z tvojho vyhradeného voľna.`, 'error');
+    }
     const work = result.suggestions.length;
     if (!result.suggestions.length) {
       notify(openTasks.length ? 'Nenašiel som voľný čas na nové bloky.' : 'Nemáš otvorené úlohy, máš voľno.', 'info');
     } else {
-      notify(`Návrh: ${work} ${plural(work, 'blok', 'bloky', 'blokov')} práce, voľný čas ostal voľný.`, 'success');
+      notify(
+        `Návrh: ${work} ${plural(work, 'blok', 'bloky', 'blokov')} práce${result.intrusions.length ? '.' : ', vyhradené voľno ostalo voľné.'}`,
+        'success',
+      );
     }
     if (result.warnings.length && narrow) setSheet(true);
   };
@@ -139,7 +152,20 @@ export function WeekPage() {
       : `${fmt(days[0], 'd. M.')} – ${fmt(days[days.length - 1], narrow ? 'd. M.' : 'd. M. yyyy')}`;
 
   const deadlines = openTasks.filter((t) => t.deadline).length;
-  const sideProps = { shownWeek, warnings, copyTrips };
+  const sideProps = { shownWeek, warnings, intrusions, copyTrips };
+
+  /** Free time drawn into the timetable; pencil work already there is noted. */
+  const drawFreeBlock = async (start: Date, end: Date) => {
+    const created = await data.insert('free_blocks', { starts_at: start.toISOString(), ends_at: end.toISOString() });
+    if (!created) return;
+    const clash = suggested.filter(
+      (s) => new Date(s.starts_at).getTime() < end.getTime() && new Date(s.ends_at).getTime() > start.getTime(),
+    ).length;
+    notify(
+      `Vyhradené voľno ${fmtTime(start)}–${fmtTime(end)}.${clash ? ' Prekrýva návrh ceruzkou, daj Navrhnúť plán znova.' : ''}`,
+      'success',
+    );
+  };
 
   return (
     <div className="page page-week">
@@ -170,6 +196,15 @@ export function WeekPage() {
                 ))}
               </div>
             )}
+            <button
+              className={`btn btn-ghost btn-icon-label draw-toggle${drawFree ? ' is-on' : ''}`}
+              onClick={() => setDrawFree((d) => !d)}
+              aria-pressed={drawFree}
+              aria-label="Vyhradiť voľno"
+            >
+              <FreeIcon />
+              <span>{drawFree ? 'Hotovo' : 'Vyhradiť voľno'}</span>
+            </button>
             <button className="btn btn-ghost btn-icon-label" onClick={() => editor.editTask({})} aria-label="Nová úloha">
               <PlusIcon />
               <span>Nová úloha</span>
@@ -206,6 +241,24 @@ export function WeekPage() {
         )}
       </header>
 
+      <NowCard />
+
+      {drawFree && (
+        <div className="draw-bar" role="status">
+          <span className="free-swatch" aria-hidden="true" />
+          <p>
+            <b>Kreslíš vyhradené voľno.</b>{' '}
+            {narrow
+              ? 'Ťukni na čas, kde ho chceš (1 h), potom ho potiahni alebo mu zmeň dĺžku spodným okrajom.'
+              : 'Ťahaj myšou v dni od začiatku po koniec voľna. Klik pridá 1 h.'}{' '}
+            Plánovač sem prácu nedá.
+          </p>
+          <button className="btn btn-primary btn-small" onClick={() => setDrawFree(false)}>
+            Hotovo
+          </button>
+        </div>
+      )}
+
       {suggested.length > 0 && (
         <div className="suggest-bar" role="region" aria-label="Návrh plánu">
           <span className="pencil-swatch" aria-hidden="true" />
@@ -237,6 +290,7 @@ export function WeekPage() {
             bands={bands}
             scrollToHour={isCurrent ? Math.max(dayStartHour, nowHour - 1) : dayStartHour}
             onSlotClick={(start) => editor.editEvent({ starts_at: start.toISOString() })}
+            onDraw={drawFree ? drawFreeBlock : undefined}
             onSwipe={narrow ? (dir) => go(addDays(anchor, dir * step)) : undefined}
           />
         </section>
@@ -288,10 +342,12 @@ function DayStrip({ anchor, onPick, onWeek }: { anchor: Date; onPick: (d: Date) 
 function WeekSide({
   shownWeek,
   warnings,
+  intrusions,
   copyTrips,
 }: {
   shownWeek: Date;
   warnings: PlannerWarning[];
+  intrusions: Suggestion[];
   copyTrips: () => void;
 }) {
   const data = useData();
@@ -305,6 +361,23 @@ function WeekSide({
 
   return (
     <>
+      {intrusions.length > 0 && (
+        <section className="warn-box">
+          <h2>Siahol som do vyhradeného voľna</h2>
+          <ul>
+            {intrusions.map((s) => (
+              <li key={s.start.toISOString()}>
+                <b>{data.taskById(s.taskId)?.title ?? 'Úloha'}</b>
+                <span>
+                  {fmt(s.start, 'EEEE d. M.')}, {fmtTime(s.start)}–{fmtTime(s.end)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="small muted">Bez toho by sa termín nestihol. Ak to nechceš, posuň termín alebo uvoľni iný čas.</p>
+        </section>
+      )}
+
       {warnings.length > 0 && (
         <section className="warn-box">
           <h2>Toto sa nezmestí</h2>
@@ -440,6 +513,15 @@ export function Chevron({ dir }: { dir: 'left' | 'right' }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function FreeIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+      <rect x="3.5" y="4" width="13" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeDasharray="3 2" />
+      <path d="M7 10.5l2 2 4-4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

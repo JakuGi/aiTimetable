@@ -34,7 +34,7 @@ export function MonthPage() {
 
   const dayItems = (day: Date) =>
     items
-      .filter((i) => isSameDay(i.start, day) && i.variant !== 'routine')
+      .filter((i) => isSameDay(i.start, day) && i.variant !== 'routine' && i.variant !== 'reserved')
       .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const agenda = narrow ? dayItems(selected) : [];

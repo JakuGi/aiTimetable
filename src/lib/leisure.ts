@@ -3,6 +3,9 @@ import { fixedTime, leisureRule, placeLeisure, subtract, type Interval, type Pla
 import { MINUTE } from './time';
 import type { LeisureWhen, RoutineBlock } from './types';
 
+/** the free-time green, for blocks drawn by hand (matches --leisure) */
+export const LEISURE_GREEN = '#2F9E6E';
+
 export const LEISURE_WHEN: { value: LeisureWhen; label: string; hint: string }[] = [
   { value: 'after_school', label: 'Po vyučovaní', hint: 'hneď po poslednej hodine alebo práci (aj s autobusom domov); bez školy večer' },
   { value: 'evening', label: 'Večer', hint: 'od 18:00, alebo čo najbližšie k tomu' },
@@ -19,9 +22,11 @@ export interface LeisureBand {
   end: Date;
   /** a gap between work ('flexible'), not a chosen window */
   gap: boolean;
+  /** free time is drawn by hand: this is only a tip, the planner may use it */
+  hint: boolean;
 }
 
-type BandInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs'>;
+type BandInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs' | 'freeBlocks'>;
 
 const MIN_GAP = 30;
 
@@ -68,7 +73,7 @@ export function leisureBands(
       if (opts.noGaps || !work.some((w) => w.start < fixed.dayEnd && w.end > fixed.dayStart)) continue;
       const from = Math.max(fixed.dayStart, startOfDay(day).getTime() === today ? now.getTime() : 0);
       pieces = from < fixed.dayEnd ? [{ start: Math.ceil(from / (5 * MINUTE)) * 5 * MINUTE, end: fixed.dayEnd }] : [];
-      for (const iv of [...fixed.busy, ...pencil]) pieces = subtract(pieces, iv);
+      for (const iv of [...fixed.busy, ...fixed.reserved, ...pencil]) pieces = subtract(pieces, iv);
       pieces = pieces.filter((iv) => iv.end - iv.start >= MIN_GAP * MINUTE);
     } else {
       pieces = placeLeisure(rule.when, rule.start, need, fixed);
@@ -82,6 +87,7 @@ export function leisureBands(
         start: new Date(iv.start),
         end: new Date(iv.end),
         gap: rule.when === 'flexible',
+        hint: input.profile.leisure_auto === false,
       });
     }
   }

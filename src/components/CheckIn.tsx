@@ -7,6 +7,7 @@ import { pendingCheckIns } from '../lib/checkin';
 import { planFollowUp, sessionMinutes } from '../lib/planner';
 import { priorityColor } from '../lib/meta';
 import { fmt, fmtDuration, fmtTime } from '../lib/time';
+import { useGender } from '../lib/gender';
 import type { Session } from '../lib/types';
 
 const EXTRA = [15, 30, 45, 60, 90, 120];
@@ -82,6 +83,7 @@ function CheckInCard({
   const data = useData();
   const editor = useEditor();
   const notify = useToast();
+  const g = useGender();
   const [more, setMore] = useState(false);
   const [extra, setExtra] = useState(30);
   const [busy, setBusy] = useState(false);
@@ -95,7 +97,7 @@ function CheckInCard({
   const pencilIn = async (minutes: number, status: Session['status']) => {
     if (!data.profile) return;
     const sessions = data.sessions.map((s) => (s.id === session.id ? { ...s, status } : s));
-    const { suggestions, warnings } = planFollowUp(
+    const { suggestions, warnings, intrusions } = planFollowUp(
       {
         now: new Date(),
         profile: data.profile,
@@ -104,6 +106,7 @@ function CheckInCard({
         sessions,
         tasks: data.tasks,
         gigs: data.profile.freelance_enabled ? data.gigs : [],
+        freeBlocks: data.free_blocks,
       },
       task.id,
       minutes,
@@ -127,9 +130,10 @@ function CheckInCard({
     const first = suggestions[0];
     const where = `${day(first.start.toISOString())} ${fmtTime(first.start)}–${fmtTime(first.end)}`;
     const rest = suggestions.length > 1 ? ` a ešte ${suggestions.length - 1}× ďalej` : '';
+    const reserved = intrusions.length ? ' Kvôli termínu som musel siahnuť do tvojho vyhradeného voľna.' : '';
     notify(
-      `Ceruzkou: ${task.title}, ${where}${rest}.${missing ? ` Do termínu sa nezmestí ${fmtDuration(missing)}.` : ''} Prijmi ho v rozvrhu.`,
-      missing ? 'info' : 'success',
+      `Ceruzkou: ${task.title}, ${where}${rest}.${missing ? ` Do termínu sa nezmestí ${fmtDuration(missing)}.` : ''}${reserved} Prijmi ho v rozvrhu.`,
+      missing || reserved ? 'info' : 'success',
     );
   };
 
@@ -183,13 +187,13 @@ function CheckInCard({
       {!more ? (
         <div className="checkin-actions">
           <button className="btn btn-primary" onClick={done} disabled={busy}>
-            Splnil som podľa plánu
+            {g('Splnil som podľa plánu', 'Splnila som podľa plánu')}
           </button>
           <button className="btn btn-ghost" onClick={() => setMore(true)} disabled={busy}>
-            Splnil, ale treba viac času…
+            {g('Splnil, ale treba viac času…', 'Splnila, ale treba viac času…')}
           </button>
           <button className="btn btn-ghost" onClick={notDone} disabled={busy}>
-            Nesplnil som
+            {g('Nesplnil som', 'Nesplnila som')}
             <small>naplánujem {fmtDuration(length)} znova ceruzkou</small>
           </button>
           <button className="link-btn checkin-finish" onClick={taskDone} disabled={busy}>

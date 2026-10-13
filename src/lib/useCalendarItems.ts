@@ -6,7 +6,7 @@ import { EVENT_KINDS, ROUTINE_KINDS, priorityColor } from './meta';
 import { routineAppliesOn } from './planner';
 import { FREELANCE_CATEGORY, FREELANCE_COLOR, fmtMoney, gigEarnings } from './freelance';
 import { atMinutes, fmtTime, timeToMinutes } from './time';
-import { leisureBands, type LeisureBand } from './leisure';
+import { LEISURE_GREEN, leisureBands, type LeisureBand } from './leisure';
 import type { GridItem, StripItem } from '../components/TimeGrid';
 import type { CalendarEvent, RoutineBlock } from './types';
 
@@ -119,9 +119,15 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
       if (s.getTime() < from || s.getTime() >= to) continue;
       const task = data.taskById(ses.task_id);
       const color = data.categoryById(task?.category_id ?? null)?.color ?? '#2B4BDB';
+      const sEnd = new Date(ses.ends_at).getTime();
+      const intrudes =
+        ses.status !== 'done' &&
+        data.free_blocks.some((f) => new Date(f.starts_at).getTime() < sEnd && new Date(f.ends_at).getTime() > s.getTime());
       items.push({
         id: `s-${ses.id}`,
         title: task?.title ?? 'Úloha',
+        detail: intrudes ? 'z vyhradeného voľna' : undefined,
+        intrudes,
         start: s,
         end: new Date(ses.ends_at),
         color,
@@ -201,6 +207,24 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
       }
     }
 
+    // free time drawn by hand: see-through, but more visible than the automatic window
+    for (const f of data.free_blocks) {
+      const s = new Date(f.starts_at);
+      const e = new Date(f.ends_at);
+      if (e.getTime() <= from || s.getTime() >= to) continue;
+      items.push({
+        id: `f-${f.id}`,
+        title: f.note || 'Vyhradené voľno',
+        detail: f.note ? 'vyhradené voľno' : undefined,
+        start: s,
+        end: e,
+        color: LEISURE_GREEN,
+        variant: 'reserved',
+        onClick: () => editor.editFreeBlock(f),
+        onMove: (start, end) => data.update('free_blocks', f.id, { starts_at: start.toISOString(), ends_at: end.toISOString() }),
+      });
+    }
+
     for (const t of data.tasks) {
       if (t.status !== 'todo' || !t.deadline) continue;
       const d = new Date(t.deadline);
@@ -223,6 +247,7 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         events: data.events,
         sessions: data.sessions,
         gigs: data.profile.freelance_enabled ? data.gigs : [],
+        freeBlocks: data.free_blocks,
       });
     }
 

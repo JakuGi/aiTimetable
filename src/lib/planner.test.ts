@@ -416,3 +416,71 @@ describe('free time windows', () => {
     expect(suggestions.some((s) => overlaps(s, at(12, 18), at(12, 19)))).toBe(true);
   });
 });
+
+describe('free time reserved by hand', () => {
+  const at = (h: number, m = 0) => new Date(2026, 9, 12, h, m).getTime();
+  const reserved = [{ starts_at: new Date(at(15)).toISOString(), ends_at: new Date(at(17)).toISOString() }];
+  const oneDay = { ...profile, planning_horizon_days: 1, focus_block_minutes: 720, max_focus_minutes_per_day: 720 };
+
+  it('keeps it empty and counts it as the day free time', () => {
+    const { suggestions, intrusions } = plan({
+      now,
+      profile: { ...oneDay, leisure_when: 'evening', leisure_minutes_per_day: 60 },
+      routine: [],
+      events: [],
+      sessions: [],
+      tasks: [task({ estimated_minutes: 600 })],
+      freeBlocks: reserved,
+    });
+    expect(suggestions.some((s) => overlaps(s, at(15), at(17)))).toBe(false);
+    // 2 h reserved covers the 1 h wanted, so the evening is not held back as well
+    expect(suggestions.some((s) => overlaps(s, at(18), at(19)))).toBe(true);
+    expect(intrusions).toHaveLength(0);
+  });
+
+  it('is given up last, only for a deadline, and reported', () => {
+    const { suggestions, warnings, intrusions } = plan({
+      now,
+      profile: { ...oneDay, leisure_when: 'evening', leisure_minutes_per_day: 180 },
+      routine: [],
+      events: [],
+      sessions: [],
+      tasks: [task({ estimated_minutes: 690, deadline: new Date(at(20)).toISOString() })],
+      freeBlocks: reserved,
+    });
+    expect(warnings).toHaveLength(0);
+    // the automatic window (18:00-19:00) went first, the reserved time only for what was left
+    expect(suggestions.some((s) => overlaps(s, at(18), at(19)))).toBe(true);
+    expect(intrusions.length).toBeGreaterThan(0);
+    const taken = intrusions.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60000, 0);
+    expect(taken).toBeLessThan(120);
+    for (const s of intrusions) expect(s.start.getTime()).toBeGreaterThanOrEqual(at(15));
+  });
+
+  it('without a deadline the reserved time stays untouched', () => {
+    const { intrusions, warnings } = plan({
+      now,
+      profile: { ...oneDay, leisure_minutes_per_day: 0 },
+      routine: [],
+      events: [],
+      sessions: [],
+      tasks: [task({ estimated_minutes: 720 })],
+      freeBlocks: reserved,
+    });
+    expect(intrusions).toHaveLength(0);
+    expect(warnings[0]).toMatchObject({ reason: 'horizon' });
+  });
+
+  it('when free time is drawn by hand only, no automatic window is kept', () => {
+    const { suggestions } = plan({
+      now,
+      profile: { ...oneDay, leisure_when: 'evening', leisure_auto: false },
+      routine: [],
+      events: [],
+      sessions: [],
+      tasks: [task({ estimated_minutes: 720 })],
+    });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].end.getTime()).toBe(at(20));
+  });
+});

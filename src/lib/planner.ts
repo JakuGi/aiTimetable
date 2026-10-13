@@ -1,5 +1,5 @@
 import { addDays, startOfDay } from 'date-fns';
-import type { CalendarEvent, Gig, LeisureDay, LeisureWhen, Profile, RoutineBlock, Session, Task } from './types';
+import type { CalendarEvent, FreeBlock, Gig, LeisureDay, LeisureWhen, Profile, RoutineBlock, Session, Task } from './types';
 import { gigBusy } from './freelance';
 import { DAY, MINUTE, atMinutes, isoWeekday, timeToMinutes, toDateInput, weekParity } from './time';
 
@@ -29,7 +29,7 @@ export type PlannerProfile = Pick<
   | 'planning_horizon_days'
   | 'odd_week_anchor'
 > &
-  Partial<Pick<Profile, 'leisure_when' | 'leisure_start' | 'leisure_days'>>;
+  Partial<Pick<Profile, 'leisure_when' | 'leisure_start' | 'leisure_days' | 'leisure_auto'>>;
 
 export interface PlannerInput {
   now: Date;
@@ -40,6 +40,8 @@ export interface PlannerInput {
   tasks: Task[];
   /** freelance gigs: event gigs (with preparation and travel) are busy time */
   gigs?: Gig[];
+  /** free time drawn by hand: kept empty, given up last and only for a deadline */
+  freeBlocks?: Pick<FreeBlock, 'starts_at' | 'ends_at'>[];
 }
 
 export interface Suggestion {
@@ -58,6 +60,8 @@ export interface PlannerWarning {
 export interface PlannerResult {
   suggestions: Suggestion[];
   warnings: PlannerWarning[];
+  /** work that had to go into free time the user reserved by hand */
+  intrusions: Suggestion[];
 }
 
 export interface Interval {
@@ -70,6 +74,8 @@ interface DayState {
   windowEnd: number;
   free: Interval[];
   leisure: Interval[];
+  /** drawn by hand, taken last */
+  reserved: Interval[];
   /** 'flexible' free time: minutes that must stay free somewhere in the day */
   keepFree: number;
   focusUsed: number;
@@ -164,11 +170,16 @@ export function plan(input: PlannerInput): PlannerResult {
       windowEnd,
       free: windowEnd > windowStart ? [{ start: windowStart, end: windowEnd }] : [],
       leisure: [],
+      reserved: [],
       keepFree: 0,
       focusUsed: 0,
       chunksPerTask: new Map(),
     };
     for (const iv of fixed.busy) state.free = subtract(state.free, iv);
+    for (const r of fixed.reserved) {
+      state.reserved.push(...intersect(state.free, r));
+      state.free = subtract(state.free, r);
+    }
     state.free = state.free.filter((iv) => minutes(iv) >= 5);
 
     const dayInterval = { start: fixed.dayStart, end: fixed.dayEnd };
@@ -182,7 +193,7 @@ export function plan(input: PlannerInput): PlannerResult {
     // 2) keep the free time
     const rule = leisureRule(profile, date);
     const need = rule.minutes - fixed.leisureHad;
-    if (rule.when !== 'off' && need >= MIN_LEISURE) {
+    if (profile.leisure_auto !== false && rule.when !== 'off' && need >= MIN_LEISURE) {
       if (rule.when === 'flexible') state.keepFree = need;
       else {
         for (const w of placeLeisure(rule.when, rule.start, need, fixed)) {
@@ -208,6 +219,7 @@ export function plan(input: PlannerInput): PlannerResult {
 
   const suggestions: Suggestion[] = [];
   const warnings: PlannerWarning[] = [];
+  const intrusions: Suggestion[] = [];
 
   for (const q of queue) {
     const deadlineMs = q.task.deadline ? new Date(q.task.deadline).getTime() : null;
@@ -224,6 +236,12 @@ export function plan(input: PlannerInput): PlannerResult {
       q.remaining = placeTask(q.task.id, q.remaining, limit, true, days, 'free', false, profile, suggestions);
       q.remaining = placeTask(q.task.id, q.remaining, limit, true, days, 'leisure', false, profile, suggestions);
     }
+    // the very last resort: free time the user reserved by hand
+    if (q.remaining > 0 && limit !== null) {
+      const before = suggestions.length;
+      q.remaining = placeTask(q.task.id, q.remaining, limit, true, days, 'reserved', false, profile, suggestions);
+      intrusions.push(...suggestions.slice(before));
+    }
     if (q.remaining > 0) {
       warnings.push({
         taskId: q.task.id,
@@ -234,7 +252,7 @@ export function plan(input: PlannerInput): PlannerResult {
   }
 
   suggestions.sort((a, b) => a.start.getTime() - b.start.getTime());
-  return { suggestions, warnings };
+  return { suggestions, warnings, intrusions };
 }
 
 /** What the user asked for on this day: when and how much free time. */
@@ -260,9 +278,11 @@ export interface FixedDay {
   leisureHad: number;
   /** end of school or work, including the trip home right after it */
   schoolEnd: number | null;
+  /** free time drawn by hand on this day */
+  reserved: Interval[];
 }
 
-type FixedInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs'>;
+type FixedInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs' | 'freeBlocks'>;
 
 /** The fixed part of one day, the same for the planner and for drawing the free-time window. */
 export function fixedTime(date: Date, input: FixedInput, routineOn?: (r: RoutineBlock) => boolean): FixedDay {
@@ -304,13 +324,20 @@ export function fixedTime(date: Date, input: FixedInput, routineOn?: (r: Routine
     // work blocks already in the plan get their break too, like the ones the planner places
     busy.push(s.kind === 'task' ? { start: iv.start, end: iv.end + profile.break_minutes * MINUTE } : iv);
   }
+  const reserved: Interval[] = [];
+  for (const f of input.freeBlocks ?? []) {
+    const iv = { start: new Date(f.starts_at).getTime(), end: new Date(f.ends_at).getTime() };
+    if (iv.end <= dayStart || iv.start >= dayEnd) continue;
+    reserved.push(iv);
+    leisureHad += overlapMinutes(iv, dayInterval);
+  }
   // the bus home right after school still belongs to school
   if (schoolEnd !== null) {
     for (const c of commutes.sort((a, b) => a.start - b.start)) {
       if (c.start >= schoolEnd - 15 * MINUTE && c.start <= schoolEnd + 90 * MINUTE) schoolEnd = Math.max(schoolEnd, c.end);
     }
   }
-  return { dayStart, dayEnd, busy, leisureHad, schoolEnd };
+  return { dayStart, dayEnd, busy, leisureHad, schoolEnd, reserved };
 }
 
 /**
@@ -324,7 +351,7 @@ export function placeLeisure(
   fixed: FixedDay,
 ): Interval[] {
   let free: Interval[] = [{ start: fixed.dayStart, end: fixed.dayEnd }];
-  for (const iv of fixed.busy) free = subtract(free, iv);
+  for (const iv of [...fixed.busy, ...fixed.reserved]) free = subtract(free, iv);
   free = free.map((iv) => ({ start: ceilStep(iv.start), end: iv.end })).filter((iv) => minutes(iv) >= MIN_LEISURE);
   if (!free.length) return [];
 
@@ -375,7 +402,7 @@ function placeTask(
   deadlineMs: number | null,
   urgent: boolean,
   days: DayState[],
-  pool: 'free' | 'leisure',
+  pool: 'free' | 'leisure' | 'reserved',
   keepFree: boolean,
   profile: PlannerProfile,
   out: Suggestion[],
@@ -439,9 +466,9 @@ function firstSlot(pool: Interval[], minLen: number, deadlineMs: number | null) 
  */
 export function planFollowUp(input: PlannerInput, taskId: string, minutes: number): PlannerResult {
   const task = input.tasks.find((t) => t.id === taskId);
-  if (!task || minutes < 5) return { suggestions: [], warnings: [] };
+  if (!task || minutes < 5) return { suggestions: [], warnings: [], intrusions: [] };
   const sessions = input.sessions.map((s) => (s.status === 'suggested' ? { ...s, status: 'planned' as const } : s));
   const target: Task = { ...task, status: 'todo', estimated_minutes: coveredMinutes(taskId, sessions) + minutes };
   const result = plan({ ...input, sessions, tasks: [target] });
-  return { suggestions: result.suggestions.filter((s) => s.kind === 'task'), warnings: result.warnings };
+  return result;
 }

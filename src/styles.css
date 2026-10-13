@@ -3063,3 +3063,220 @@ body:has(.checkin) .toasts {
   width: 100%;
   min-width: 0;
 }
+
+/* ------------------------------------------------------------------ now and next */
+
+.now-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.now-row {
+  font: inherit;
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--c);
+  border-radius: var(--radius-m);
+  cursor: pointer;
+  overflow: hidden;
+}
+.now-row:disabled {
+  cursor: default;
+}
+.now-row.is-idle {
+  border-left-style: dotted;
+}
+.now-row:not(:disabled):hover {
+  border-color: var(--ink-2);
+  border-left-color: var(--c);
+}
+.now-tag {
+  flex: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c);
+}
+.now-row.is-next .now-tag {
+  color: var(--muted);
+}
+.now-text {
+  min-width: 0;
+  font-size: 14.5px;
+  line-height: 1.35;
+}
+.now-text b {
+  font-weight: 800;
+}
+.now-detail {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.now-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: color-mix(in srgb, var(--c) 15%, transparent);
+}
+.now-progress span {
+  display: block;
+  height: 100%;
+  background: var(--c);
+}
+
+/* ------------------------------------------------------------------ free time drawn by hand */
+
+/* see-through and outlined: clearly kept free, but not an event */
+.block-reserved {
+  background: repeating-linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--leisure) 16%, transparent) 0 6px,
+      color-mix(in srgb, var(--leisure) 9%, transparent) 6px 12px
+    );
+  border: 1.5px solid color-mix(in srgb, var(--leisure) 70%, transparent);
+  color: color-mix(in srgb, var(--leisure) 75%, var(--ink));
+  box-shadow: none;
+}
+.block-reserved {
+  z-index: 0;
+}
+.block-reserved:hover {
+  z-index: 0;
+  filter: none;
+  border-color: var(--leisure);
+}
+.block-reserved .block-title {
+  font-weight: 700;
+}
+.leisure-band.is-hint {
+  background: color-mix(in srgb, var(--leisure) 4%, transparent);
+  border-left-style: dashed;
+  border-left-color: color-mix(in srgb, var(--leisure) 30%, transparent);
+}
+.leisure-band.is-hint .leisure-label {
+  opacity: 0.75;
+  font-weight: 500;
+}
+.grid-col.is-drawing {
+  cursor: crosshair;
+}
+.draw-preview {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: 5px;
+  border: 1.5px dashed var(--leisure);
+  background: color-mix(in srgb, var(--leisure) 18%, transparent);
+  color: color-mix(in srgb, var(--leisure) 75%, var(--ink));
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 6px;
+}
+.draw-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--leisure) 60%, transparent);
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--leisure) 8%, var(--surface));
+}
+.draw-bar p {
+  margin: 0;
+  flex: 1;
+  min-width: 220px;
+  font-size: 14px;
+}
+.free-swatch {
+  width: 28px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1.5px solid color-mix(in srgb, var(--leisure) 70%, transparent);
+  background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--leisure) 22%, transparent) 0 4px, transparent 4px 8px);
+}
+.draw-toggle.is-on {
+  border-color: var(--leisure);
+  background: color-mix(in srgb, var(--leisure) 14%, var(--surface));
+  color: color-mix(in srgb, var(--leisure) 70%, var(--ink));
+}
+
+/* ------------------------------------------------------------------ gender */
+
+.gender-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0;
+}
+.gender-option {
+  font: inherit;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  text-align: left;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  cursor: pointer;
+}
+.gender-option:hover {
+  border-color: var(--pen);
+  background: color-mix(in srgb, var(--pen) 6%, var(--surface));
+}
+.gender-option b {
+  font-size: 16px;
+}
+.gender-option span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.leisure-modes.two {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+@media (max-width: 760px) {
+  .now-card {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .now-row {
+    padding: 8px 10px;
+  }
+  .now-text {
+    font-size: 13.5px;
+  }
+  .draw-bar p {
+    min-width: 0;
+    font-size: 13px;
+  }
+}
+
+/* work placed into free time reserved by hand: the green edge keeps it visible */
+.block.is-intruding {
+  outline: 2px solid color-mix(in srgb, var(--leisure) 80%, transparent);
+  outline-offset: -1px;
+}
+.block.is-intruding .block-detail {
+  color: color-mix(in srgb, var(--leisure) 75%, var(--ink));
+  font-weight: 600;
+  opacity: 1;
+}
