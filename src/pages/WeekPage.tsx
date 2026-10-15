@@ -205,9 +205,14 @@ export function WeekPage() {
               <FreeIcon />
               <span>{drawFree ? 'Hotovo' : 'Vyhradiť voľno'}</span>
             </button>
-            <button className="btn btn-ghost btn-icon-label" onClick={() => editor.editTask({})} aria-label="Nová úloha">
+            <button
+              className="btn btn-ghost btn-icon-label"
+              onClick={() => editor.editTask({})}
+              aria-label="Pridať úlohu, udalosť alebo pripomienku"
+              title="Pridať úlohu, udalosť alebo pripomienku"
+            >
               <PlusIcon />
-              <span>Nová úloha</span>
+              <span>Pridať</span>
             </button>
             <button className="btn btn-primary btn-icon-label" onClick={runPlanner} disabled={planning || !data.profile}>
               <PencilIcon />

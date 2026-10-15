@@ -3380,3 +3380,21 @@ body:has(.checkin) .toasts {
     animation: none;
   }
 }
+
+.gender-pick.in-settings {
+  margin: 4px 0 2px;
+}
+.gender-option[aria-checked='true'] {
+  border-color: var(--pen);
+  background: color-mix(in srgb, var(--pen) 10%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--pen);
+}
+.new-kind {
+  margin: -2px 0 14px;
+}
+.new-kind .segmented {
+  width: 100%;
+}
+.new-kind .segmented button {
+  flex: 1;
+}

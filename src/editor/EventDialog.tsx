@@ -7,6 +7,7 @@ import { EVENT_KINDS, REMIND_OPTIONS } from '../lib/meta';
 import { fmt, fromLocalInput, parseInput, toDateInput, toLocalInput } from '../lib/time';
 import type { CalendarEvent, EventKind } from '../lib/types';
 import { CategorySelect, Field, Segmented } from './fields';
+import { NEW_TITLES, NewKindSwitch } from './NewKindSwitch';
 
 export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEvent>; onClose: () => void }) {
   const { insert, update, remove, event_templates } = useData();
@@ -102,7 +103,7 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
 
   return (
     <Modal
-      title={initial.id ? 'Upraviť v kalendári' : 'Pridať do kalendára'}
+      title={initial.id ? 'Upraviť v kalendári' : NEW_TITLES[isReminder ? 'reminder' : 'event']}
       onClose={onClose}
       footer={
         <>
@@ -121,16 +122,32 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
         </>
       }
     >
-      <Segmented
-        label="Druh"
-        value={kind}
-        onChange={changeKind}
-        options={(Object.keys(EVENT_KINDS) as EventKind[]).map((k) => ({
-          value: k,
-          label: EVENT_KINDS[k].label,
-          color: EVENT_KINDS[k].color,
-        }))}
-      />
+      {!initial.id && (
+        <NewKindSwitch
+          value={isReminder ? 'reminder' : 'event'}
+          title={title}
+          onLocal={(k) => {
+            if (k === 'task') return false;
+            changeKind(k === 'reminder' ? 'reminder' : 'event');
+            return true;
+          }}
+        />
+      )}
+      {/* a new item picks event / reminder in the switch above; the finer kind only for events */}
+      {(initial.id || !isReminder) && (
+        <Segmented
+          label="Druh"
+          value={kind}
+          onChange={changeKind}
+          options={(Object.keys(EVENT_KINDS) as EventKind[])
+            .filter((k) => initial.id || k !== 'reminder')
+            .map((k) => ({
+              value: k,
+              label: EVENT_KINDS[k].label,
+              color: EVENT_KINDS[k].color,
+            }))}
+        />
+      )}
       <Field label="Názov">
         <input
           autoFocus

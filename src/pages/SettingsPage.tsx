@@ -252,14 +252,28 @@ export function SettingsPage() {
           <Field label="Meno">
             <input value={form.display_name ?? ''} onChange={(e) => set('display_name', e.target.value)} maxLength={80} />
           </Field>
-          <Field label="Oslovovanie" hint="Ako ťa appka oslovuje v tlačidlách a správach.">
-            <Segmented
-              label="Oslovovanie"
-              value={profile.gender ?? ''}
-              onChange={(v) => v && update('profiles', profile.id, { gender: v })}
-              options={GENDER_OPTIONS.map((o) => ({ value: o.value, label: `${o.label} (${o.example.split(',')[0]})` }))}
-            />
-          </Field>
+          <div className="field">
+            <span className="field-label">Oslovovanie</span>
+            <div className="gender-pick in-settings" role="radiogroup" aria-label="Oslovovanie">
+              {GENDER_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={profile.gender === o.value}
+                  className="gender-option"
+                  onClick={() => profile.gender !== o.value && update('profiles', profile.id, { gender: o.value })}
+                >
+                  <b>{o.label}</b>
+                  <span>{o.example}</span>
+                </button>
+              ))}
+            </div>
+            <span className="field-hint">
+              Ako ťa appka oslovuje v tlačidlách a správach. Ukladá sa hneď
+              {profile.gender ? '' : ', zatiaľ nie je vybrané'}.
+            </span>
+          </div>
           <p className="small muted">
             {g('Prihlásený', 'Prihlásená')} ako {user?.email}
           </p>

@@ -6,6 +6,7 @@ import { coveredMinutes, doneMinutes } from '../lib/planner';
 import { fmtDuration, fromLocalInput, toLocalInput } from '../lib/time';
 import type { Priority, Task } from '../lib/types';
 import { CategorySelect, Field, Segmented } from './fields';
+import { NEW_TITLES, NewKindSwitch } from './NewKindSwitch';
 
 const ESTIMATES = [15, 30, 60, 90, 120, 180, 240];
 
@@ -50,7 +51,7 @@ export function TaskDialog({ initial, onClose }: { initial: Partial<Task>; onClo
 
   return (
     <Modal
-      title={initial.id ? 'Upraviť úlohu' : 'Nová úloha'}
+      title={initial.id ? 'Upraviť úlohu' : NEW_TITLES.task}
       onClose={onClose}
       footer={
         <>
@@ -76,6 +77,7 @@ export function TaskDialog({ initial, onClose }: { initial: Partial<Task>; onClo
         </>
       }
     >
+      {!initial.id && <NewKindSwitch value="task" title={title} />}
       <Field label="Čo treba urobiť">
         <input
           autoFocus

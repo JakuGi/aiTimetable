@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../lib/data';
 import { LEISURE_WHEN, leisureBands } from '../lib/leisure';
 import { leisureRule } from '../lib/planner';
+import { useGender } from '../lib/gender';
 import { fmtDuration, fmtTime, WEEKDAY_LONG, WEEKDAY_SHORT, weekDays, weekStart } from '../lib/time';
 import type { LeisureDay, LeisureMode, LeisureWhen, Profile } from '../lib/types';
 
@@ -20,6 +21,7 @@ export function LeisureSettings() {
   const data = useData();
   const { profile, update } = data;
   const [prefs, setPrefs] = useState<Prefs | null>(profile);
+  const g = useGender();
 
   useEffect(() => setPrefs(profile), [profile]);
 
@@ -74,7 +76,7 @@ export function LeisureSettings() {
       <h2>Voľný čas</h2>
       <p className="muted small">
         Nie je to blok v kalendári, ale okno, ktoré plánovač nechá prázdne. V rozvrhu ho uvidíš ako jemný zelený pás.
-        Prácu doň dá, len keď by inak nestihol termín. Keď si voľno zapíšeš sám (udalosť alebo blok v Môj týždeň typu
+        Prácu doň dá, len keď by inak nestihol termín. Keď si voľno zapíšeš {g('sám', 'sama')} (udalosť alebo blok v Môj týždeň typu
         Voľný čas), okno sa o ten čas skráti.
       </p>
 
@@ -98,7 +100,7 @@ export function LeisureSettings() {
             className="leisure-mode"
             onClick={() => save({ leisure_auto: false })}
           >
-            <b>Sám si ho nakreslím</b>
+            <b>{g('Sám', 'Sama')} si ho nakreslím</b>
             <span>
               drží sa len voľno nakreslené v Rozvrhu (tlačidlo Vyhradiť voľno); zelené okná ostanú ako tip, kam by sa
               hodilo
