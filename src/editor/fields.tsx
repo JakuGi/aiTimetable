@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useData } from '../lib/data';
+import { t } from '../lib/i18n';
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
@@ -15,7 +16,7 @@ export function CategorySelect({ value, onChange }: { value: string | null; onCh
   const { categories } = useData();
   return (
     <select value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
-      <option value="">Bez kategórie</option>
+      <option value="">{t('Bez kategórie')}</option>
       {categories.map((c) => (
         <option key={c.id} value={c.id}>
           {c.name}

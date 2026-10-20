@@ -12,6 +12,8 @@ import {
 } from '../lib/push';
 import { fmt } from '../lib/time';
 import type { Profile } from '../lib/types';
+import { plural, t } from '../lib/i18n';
+import { android } from '../lib/android';
 
 interface Device {
   id: string;
@@ -38,12 +40,12 @@ type Prefs = Pick<
 
 const SESSION_LEADS = [0, 5, 10, 15];
 const DEADLINE_LEADS = [
-  { value: 2, label: '2 h vopred' },
-  { value: 6, label: '6 h vopred' },
-  { value: 24, label: 'deň vopred' },
-  { value: 48, label: '2 dni vopred' },
+  { value: 2, get label() { return t('2 h vopred'); } },
+  { value: 6, get label() { return t('6 h vopred'); } },
+  { value: 24, get label() { return t('deň vopred'); } },
+  { value: 48, get label() { return t('2 dni vopred'); } },
 ];
-const short = (t: string) => t.slice(0, 5);
+const short = (time: string) => time.slice(0, 5);
 
 export function NotificationSettings() {
   const { profile, update } = useData();
@@ -57,12 +59,26 @@ export function NotificationSettings() {
   const [busy, setBusy] = useState(false);
   const [prefs, setPrefs] = useState<Prefs | null>(profile);
   const [countdown, setCountdown] = useState<number | null>(null);
+  // the Android app shows reminders by itself; it only needs the permission
+  const app = android();
+  const [appCanNotify, setAppCanNotify] = useState(() => app?.canNotify() ?? false);
+
+  useEffect(() => {
+    if (!app) return;
+    const check = () => setAppCanNotify(app.canNotify());
+    window.addEventListener('rozvrh-notifications', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.removeEventListener('rozvrh-notifications', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [app]);
 
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) return setCountdown(null);
-    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => clearTimeout(timer);
   }, [countdown]);
 
   useEffect(() => setPrefs(profile), [profile]);
@@ -95,9 +111,9 @@ export function NotificationSettings() {
     const r = await enablePush();
     setBusy(false);
     if ('Notification' in window) setPermission(Notification.permission);
-    if (r.ok) notify('Upozornenia na tomto zariadení sú zapnuté.', 'success');
-    else if (r.reason === 'denied') notify('Upozornenia sú zablokované. Povoľ ich v nastaveniach prehliadača alebo telefónu.', 'error');
-    else if (r.reason === 'error') notify(`Nepodarilo sa zapnúť upozornenia: ${r.message}`, 'error');
+    if (r.ok) notify(t('Upozornenia na tomto zariadení sú zapnuté.'), 'success');
+    else if (r.reason === 'denied') notify(t('Upozornenia sú zablokované. Povoľ ich v nastaveniach prehliadača alebo telefónu.'), 'error');
+    else if (r.reason === 'error') notify(t('Nepodarilo sa zapnúť upozornenia: {error}', { error: r.message ?? '' }), 'error');
     refresh();
   };
 
@@ -105,7 +121,7 @@ export function NotificationSettings() {
     setBusy(true);
     await disablePush();
     setBusy(false);
-    notify('Toto zariadenie už upozornenia nedostane.', 'info');
+    notify(t('Toto zariadenie už upozornenia nedostane.'), 'info');
     refresh();
   };
 
@@ -119,16 +135,22 @@ export function NotificationSettings() {
     setBusy(true);
     const r = await sendTestPush(delaySeconds);
     setBusy(false);
-    if ('error' in r) return notify(`Test zlyhal: ${r.error}`, 'error');
-    if (r.devices === 0) return notify('Žiadne zariadenie nemá zapnuté upozornenia. Najprv ich zapni.', 'info');
+    if ('error' in r) return notify(t('Test zlyhal: {error}', { error: r.error }), 'error');
+    if (r.devices === 0) return notify(t('Žiadne zariadenie nemá zapnuté upozornenia. Najprv ich zapni.'), 'info');
     if ('scheduled' in r) {
       setCountdown(r.delaySeconds);
-      return notify(`Notifikácia príde o ${r.delaySeconds} s. Teraz appku úplne zavri (aj zo zoznamu otvorených aplikácií) a počkaj.`, 'success');
+      return notify(
+        t('Notifikácia príde o {n} s. Teraz appku úplne zavri (aj zo zoznamu otvorených aplikácií) a počkaj.', { n: r.delaySeconds }),
+        'success',
+      );
     }
     notify(
       r.failed
-        ? `Odoslané na ${r.sent} z ${r.devices} zariadení. Ostatné sa nepodarilo zastihnúť.`
-        : `Odoslané na ${r.sent} ${r.sent === 1 ? 'zariadenie' : r.sent < 5 ? 'zariadenia' : 'zariadení'}. Malo by prísť o pár sekúnd.`,
+        ? t('Odoslané na {sent} z {n} zariadení. Ostatné sa nepodarilo zastihnúť.', { sent: r.sent, n: r.devices })
+        : t('Odoslané na {n} {devices}. Malo by prísť o pár sekúnd.', {
+            n: r.sent,
+            devices: plural(r.sent, 'zariadenie', 'zariadenia', 'zariadení'),
+          }),
       r.failed ? 'info' : 'success',
     );
     refresh();
@@ -143,50 +165,74 @@ export function NotificationSettings() {
 
   return (
     <section className="card-section notif-settings">
-      <h2>Upozornenia</h2>
+      <h2>{t('Upozornenia')}</h2>
 
-      <div className="device-state">
+      {app && (
+        <div className="device-state">
+          {appCanNotify ? (
+            <p className="device-on">
+              <span className="dot-on" aria-hidden="true" />
+              {t('Android appka ti pripomienky ukáže sama, aj keď je zatvorená: udalosti, spoje, bloky práce a odchod na akcie.')}
+            </p>
+          ) : (
+            <p>{t('Povoľ appke upozornenia a pripomienky ti prídu, aj keď je zatvorená.')}</p>
+          )}
+          {!appCanNotify && (
+            <div className="actions">
+              <button className="btn btn-primary" onClick={() => app.requestNotifications()}>
+                {t('Povoliť upozornenia')}
+              </button>
+            </div>
+          )}
+          <p className="small muted">
+            {t('Ranný prehľad a blížiace sa termíny chodia ako webové upozornenia, zapneš ich v Rozvrhu otvorenom v prehliadači.')}
+          </p>
+        </div>
+      )}
+
+      <div className="device-state" hidden={Boolean(app)}>
         {support === 'ios-install' ? (
           <p>
-            Na iPhone prídu upozornenia len z appky na ploche: v Safari ťukni na <b>Zdieľať</b> a potom <b>Pridať na plochu</b>.
-            Otvor Rozvrh z plochy a zapni upozornenia tu.
+            {t('Na iPhone prídu upozornenia len z appky na ploche: v Safari ťukni na')} <b>{t('Zdieľať')}</b> {t('a potom')}{' '}
+            <b>{t('Pridať na plochu')}</b>. {t('Otvor Rozvrh z plochy a zapni upozornenia tu.')}
           </p>
         ) : support === 'unsupported' ? (
-          <p className="muted">Tento prehliadač nevie zobrazovať upozornenia. Skús Chrome, Edge alebo Safari.</p>
+          <p className="muted">{t('Tento prehliadač nevie zobrazovať upozornenia. Skús Chrome, Edge alebo Safari.')}</p>
         ) : support === 'not-configured' ? (
-          <p className="muted">Upozornenia ešte nie sú v appke nastavené.</p>
+          <p className="muted">{t('Upozornenia ešte nie sú v appke nastavené.')}</p>
         ) : permission === 'denied' ? (
           <p>
-            Upozornenia sú pre Rozvrh zablokované. Povoľ ich v nastaveniach{' '}
-            {isIOS() ? 'iPhonu (Nastavenia → Upozornenia → Rozvrh)' : 'prehliadača pri adrese stránky'} a vráť sa sem.
+            {isIOS()
+              ? t('Upozornenia sú pre Rozvrh zablokované. Povoľ ich v nastaveniach iPhonu (Nastavenia → Upozornenia → Rozvrh) a vráť sa sem.')
+              : t('Upozornenia sú pre Rozvrh zablokované. Povoľ ich v nastaveniach prehliadača pri adrese stránky a vráť sa sem.')}
           </p>
         ) : subscribed ? (
           <p className="device-on">
             <span className="dot-on" aria-hidden="true" />
-            Toto zariadenie dostáva upozornenia, aj keď je appka zatvorená.
+            {t('Toto zariadenie dostáva upozornenia, aj keď je appka zatvorená.')}
           </p>
         ) : (
-          <p>Zapni upozornenia na každom zariadení, kde ich chceš dostávať (mobil aj počítač).</p>
+          <p>{t('Zapni upozornenia na každom zariadení, kde ich chceš dostávať (mobil aj počítač).')}</p>
         )}
         <div className="actions">
           {support === 'ok' && permission !== 'denied' && !subscribed && (
             <button className="btn btn-primary" onClick={turnOn} disabled={busy}>
-              Zapnúť upozornenia na tomto zariadení
+              {t('Zapnúť upozornenia na tomto zariadení')}
             </button>
           )}
           <button className="btn btn-ghost" onClick={() => test()} disabled={busy || devices.length === 0}>
-            Poslať testovaciu notifikáciu
+            {t('Poslať testovaciu notifikáciu')}
           </button>
           <button
             className="btn btn-ghost"
             onClick={() => test(45)}
             disabled={busy || devices.length === 0 || countdown !== null}
           >
-            {countdown !== null ? `Príde o ${countdown} s, zavri appku` : 'Test o 45 s (so zavretou appkou)'}
+            {countdown !== null ? t('Príde o {n} s, zavri appku', { n: countdown }) : t('Test o 45 s (so zavretou appkou)')}
           </button>
           {subscribed && (
             <button className="btn btn-danger-ghost" onClick={turnOff} disabled={busy}>
-              Vypnúť na tomto zariadení
+              {t('Vypnúť na tomto zariadení')}
             </button>
           )}
         </div>
@@ -194,43 +240,44 @@ export function NotificationSettings() {
 
       {devices.length > 0 && (
         <details className="more push-help">
-          <summary>Okamžitý test príde, ale pri zavretej appke nič?</summary>
+          <summary>{t('Okamžitý test príde, ale pri zavretej appke nič?')}</summary>
           <ul>
             <li>
-              <b>Android:</b> Nastavenia telefónu → Aplikácie → Rozvrh (alebo Chrome) → Batéria → <i>Bez obmedzení</i>.
-              Úsporný režim a optimalizácia batérie notifikácie na pozadí zadržia.
+              <b>{t('Android:')}</b> {t('Nastavenia telefónu → Aplikácie → Rozvrh (alebo Chrome) → Batéria →')}{' '}
+              <i>{t('Bez obmedzení')}</i>. {t('Úsporný režim a optimalizácia batérie notifikácie na pozadí zadržia.')}
             </li>
             <li>
-              Tamtiež skontroluj <i>Upozornenia</i>: musia byť povolené pre appku aj pre Chrome a nesmie byť zapnuté
-              Nerušiť.
+              {t('Tamtiež skontroluj')} <i>{t('Upozornenia')}</i>
+              {t(': musia byť povolené pre appku aj pre Chrome a nesmie byť zapnuté Nerušiť.')}
             </li>
             <li>
-              <b>iPhone:</b> appka musí byť otvorená z plochy, nie zo Safari, a v Nastavenia → Upozornenia → Rozvrh povolená.
+              <b>{t('iPhone:')}</b>{' '}
+              {t('appka musí byť otvorená z plochy, nie zo Safari, a v Nastavenia → Upozornenia → Rozvrh povolená.')}
             </li>
-            <li>Pripomienky prichádzajú len pre prijaté bloky práce, nie pre návrhy ceruzkou.</li>
+            <li>{t('Pripomienky prichádzajú len pre prijaté bloky práce, nie pre návrhy ceruzkou.')}</li>
           </ul>
         </details>
       )}
 
       {devices.length > 0 && (
         <>
-          <h3>Zariadenia</h3>
+          <h3>{t('Zariadenia')}</h3>
           <ul className="devices">
             {devices.map((d) => (
               <li key={d.id}>
                 <span>
                   <span>
-                    <b>{d.device ?? 'Zariadenie'}</b>
-                    {d.endpoint === endpoint && <span className="this-device"> (toto)</span>}
+                    <b>{d.device ?? t('Zariadenie')}</b>
+                    {d.endpoint === endpoint && <span className="this-device"> {t('(toto)')}</span>}
                   </span>
                   <span className="small muted">
                     {d.last_success_at
-                      ? `naposledy doručené ${fmt(d.last_success_at, 'd. M. H:mm')}`
-                      : `pridané ${fmt(d.created_at, 'd. M. yyyy')}`}
+                      ? t('naposledy doručené {date}', { date: fmt(d.last_success_at, 'd. M. H:mm') })
+                      : t('pridané {date}', { date: fmt(d.created_at, 'd. M. yyyy') })}
                   </span>
                 </span>
                 <button className="btn btn-danger-ghost" onClick={() => removeDevice(d)}>
-                  Odobrať
+                  {t('Odobrať')}
                 </button>
               </li>
             ))}
@@ -238,27 +285,27 @@ export function NotificationSettings() {
         </>
       )}
 
-      <h3>Čo ti má prísť</h3>
+      <h3>{t('Čo ti má prísť')}</h3>
       <Switch
         checked={prefs.notify_events}
         onChange={(v) => set('notify_events', v)}
-        title="Pripomienky udalostí"
-        hint="Keď pri udalosti alebo spoji nastavíš upozornenie."
+        title={t('Pripomienky udalostí')}
+        hint={t('Keď pri udalosti alebo spoji nastavíš upozornenie.')}
       />
       <Switch
         checked={prefs.notify_sessions}
         onChange={(v) => set('notify_sessions', v)}
-        title="Začiatok bloku práce"
-        hint="Len prijaté bloky, nie návrhy ceruzkou."
+        title={t('Začiatok bloku práce')}
+        hint={t('Len prijaté bloky, nie návrhy ceruzkou.')}
       >
         <select
           value={prefs.session_lead_minutes}
           onChange={(e) => set('session_lead_minutes', Number(e.target.value))}
-          aria-label="Ako skoro pred blokom práce"
+          aria-label={t('Ako skoro pred blokom práce')}
         >
           {SESSION_LEADS.map((m) => (
             <option key={m} value={m}>
-              {m ? `${m} min vopred` : 'v čase začiatku'}
+              {m ? t("{n} min vopred", { n: m }) : t("v čase začiatku")}
             </option>
           ))}
         </select>
@@ -266,12 +313,12 @@ export function NotificationSettings() {
       <Switch
         checked={prefs.notify_deadlines}
         onChange={(v) => set('notify_deadlines', v)}
-        title="Blížiaci sa termín úlohy"
+        title={t('Blížiaci sa termín úlohy')}
       >
         <select
           value={prefs.deadline_lead_hours}
           onChange={(e) => set('deadline_lead_hours', Number(e.target.value))}
-          aria-label="Ako skoro pred termínom"
+          aria-label={t('Ako skoro pred termínom')}
         >
           {DEADLINE_LEADS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -284,42 +331,42 @@ export function NotificationSettings() {
         <Switch
           checked={prefs.notify_gigs}
           onChange={(v) => set('notify_gigs', v)}
-          title="Čas vyraziť na freelance akciu"
-          hint="Podľa času na cestu a prípravu pri akcii."
+          title={t('Čas vyraziť na freelance akciu')}
+          hint={t('Podľa času na cestu a prípravu pri akcii.')}
         />
       )}
       <Switch
         checked={prefs.notify_summary}
         onChange={(v) => set('notify_summary', v)}
-        title="Ranný prehľad dňa"
-        hint="Koľko ťa dnes čaká udalostí, práce a termínov."
+        title={t('Ranný prehľad dňa')}
+        hint={t('Koľko ťa dnes čaká udalostí, práce a termínov.')}
       >
         <input
           type="time"
           value={short(prefs.summary_time)}
           onChange={(e) => e.target.value && set('summary_time', e.target.value)}
-          aria-label="Čas ranného prehľadu"
+          aria-label={t('Čas ranného prehľadu')}
         />
       </Switch>
       <Switch
         checked={prefs.quiet_enabled}
         onChange={(v) => set('quiet_enabled', v)}
-        title="Tichý režim v noci"
-        hint="V tomto čase prídu len pripomienky udalostí a odchod na akcie."
+        title={t('Tichý režim v noci')}
+        hint={t('V tomto čase prídu len pripomienky udalostí a odchod na akcie.')}
       >
         <span className="time-range">
           <input
             type="time"
             value={short(prefs.quiet_from)}
             onChange={(e) => e.target.value && set('quiet_from', e.target.value)}
-            aria-label="Tichý režim od"
+            aria-label={t('Tichý režim od')}
           />
           <span>–</span>
           <input
             type="time"
             value={short(prefs.quiet_to)}
             onChange={(e) => e.target.value && set('quiet_to', e.target.value)}
-            aria-label="Tichý režim do"
+            aria-label={t('Tichý režim do')}
           />
         </span>
       </Switch>

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { t } from '../lib/i18n';
 
 interface AuthState {
   session: Session | null;
@@ -20,8 +21,8 @@ function readLinkError(): string | null {
   const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search);
   const code = params.get('error_code');
   if (!code && !params.get('error')) return null;
-  if (code === 'otp_expired') return 'Odkaz z e-mailu už vypršal alebo bol použitý. Pošli si nový.';
-  return params.get('error_description')?.replace(/\+/g, ' ') ?? 'Odkaz z e-mailu sa nepodarilo použiť.';
+  if (code === 'otp_expired') return t('Odkaz z e-mailu už vypršal alebo bol použitý. Pošli si nový.');
+  return params.get('error_description')?.replace(/\+/g, ' ') ?? t('Odkaz z e-mailu sa nepodarilo použiť.');
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

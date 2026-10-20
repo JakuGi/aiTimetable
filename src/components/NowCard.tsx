@@ -5,6 +5,7 @@ import { currentLine, nextLine, nowAndNext, type NowItem, type NowKind } from '.
 import { LEISURE_GREEN } from '../lib/leisure';
 import { EVENT_KINDS, ROUTINE_KINDS } from '../lib/meta';
 import { FREELANCE_COLOR } from '../lib/freelance';
+import { t } from '../lib/i18n';
 
 const KIND_COLOR: Record<NowKind, string> = {
   work: '#2B4BDB',
@@ -20,11 +21,11 @@ const KIND_COLOR: Record<NowKind, string> = {
 function useNow(every: number) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), every);
+    const timer = setInterval(() => setNow(new Date()), every);
     const wake = () => document.visibilityState === 'visible' && setNow(new Date());
     document.addEventListener('visibilitychange', wake);
     return () => {
-      clearInterval(t);
+      clearInterval(timer);
       document.removeEventListener('visibilitychange', wake);
     };
   }, [every]);
@@ -65,7 +66,7 @@ export function NowCard() {
     : 0;
 
   return (
-    <section className="now-card" aria-label="Teraz a potom" aria-live="polite">
+    <section className="now-card" aria-label={t('Teraz a potom')} aria-live="polite">
       <button
         type="button"
         className={`now-row is-now${current ? '' : ' is-idle'}`}
@@ -73,7 +74,7 @@ export function NowCard() {
         onClick={() => current && open(current)}
         disabled={!current}
       >
-        <span className="now-tag">Teraz</span>
+        <span className="now-tag">{t('Teraz')}</span>
         <span className="now-text">
           {cur.lead}
           {cur.title && <b> {cur.title}</b>}
@@ -87,7 +88,7 @@ export function NowCard() {
       </button>
       {nxt && next && (
         <button type="button" className="now-row is-next" style={{ '--c': color(next) } as CSSProperties} onClick={() => open(next)}>
-          <span className="now-tag">Potom</span>
+          <span className="now-tag">{t('Potom')}</span>
           <span className="now-text">
             {nxt.lead}
             {nxt.title && <b> {nxt.title}</b>}

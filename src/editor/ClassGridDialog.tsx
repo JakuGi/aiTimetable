@@ -2,9 +2,10 @@ import { useMemo, useState, type KeyboardEvent } from 'react';
 import { Modal } from '../components/Modal';
 import { useData } from '../lib/data';
 import { DEFAULT_CLASS_PERIODS, PARITY_LABELS } from '../lib/meta';
-import { WEEKDAY_SHORT } from '../lib/time';
+import { weekdayShort } from '../lib/time';
 import type { ClassPeriod, RoutineBlock, WeekParity } from '../lib/types';
 import { Segmented } from './fields';
+import { t } from '../lib/i18n';
 
 const DAYS = [1, 2, 3, 4, 5];
 const key = (day: number, period: number) => `${day}:${period}`;
@@ -56,7 +57,7 @@ export function ClassGridDialog({ initialParity = 'all', onClose }: { initialPar
   );
 
   const switchParity = (p: WeekParity) => {
-    if (dirty && !window.confirm('Neuložené zmeny v tejto tabuľke sa stratia. Pokračovať?')) return;
+    if (dirty && !window.confirm(t('Neuložené zmeny v tejto tabuľke sa stratia. Pokračovať?'))) return;
     setParity(p);
     setCells(cellsFrom(placeBlocks(routine_blocks, periods, p)));
     setDirty(false);
@@ -137,42 +138,43 @@ export function ClassGridDialog({ initialParity = 'all', onClose }: { initialPar
 
   return (
     <Modal
-      title="Rozvrh hodín"
+      title={t('Rozvrh hodín')}
       onClose={onClose}
       wide
       footer={
         <>
-          <span className="small muted">Enter skočí na ďalšiu hodinu. Prázdna bunka = voľno.</span>
+          <span className="small muted">{t('Enter skočí na ďalšiu hodinu. Prázdna bunka = voľno.')}</span>
           <span className="spacer" />
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Zrušiť
+            {t('Zrušiť')}
           </button>
           <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>
-            {busy ? 'Ukladám…' : 'Uložiť rozvrh'}
+            {busy ? t('Ukladám…') : t('Uložiť rozvrh')}
           </button>
         </>
       }
     >
       <Segmented
-        label="Pre ktoré týždne"
+        label={t('Pre ktoré týždne')}
         value={parity}
         onChange={switchParity}
         options={(['all', 'odd', 'even'] as WeekParity[]).map((p) => ({ value: p, label: PARITY_LABELS[p] }))}
       />
       {parity !== 'all' && (
         <p className="small muted">
-          Sem píš len hodiny, ktoré sú iba v {parity === 'odd' ? 'nepárnom' : 'párnom'} týždni. Spoločné hodiny patria do
-          „Každý týždeň“.
+          {parity === 'odd'
+            ? t('Sem píš len hodiny, ktoré sú iba v nepárnom týždni. Spoločné hodiny patria do „Každý týždeň“.')
+            : t('Sem píš len hodiny, ktoré sú iba v párnom týždni. Spoločné hodiny patria do „Každý týždeň“.')}
         </p>
       )}
       <div className="class-grid-wrap">
         <table className="class-grid">
           <thead>
             <tr>
-              <th scope="col">Hodina</th>
+              <th scope="col">{t('Hodina')}</th>
               {DAYS.map((d) => (
                 <th key={d} scope="col">
-                  {WEEKDAY_SHORT[d - 1]}
+                  {weekdayShort(d - 1)}
                 </th>
               ))}
             </tr>
@@ -195,7 +197,7 @@ export function ClassGridDialog({ initialParity = 'all', onClose }: { initialPar
                       onKeyDown={(e) => onKey(e, d, pi)}
                       list="class-subjects"
                       placeholder=" "
-                      aria-label={`${WEEKDAY_SHORT[d - 1]}, ${pi + 1}. hodina`}
+                      aria-label={t('{day}, {n}. hodina', { day: weekdayShort(d - 1), n: pi + 1 })}
                       maxLength={120}
                     />
                   </td>
@@ -212,7 +214,9 @@ export function ClassGridDialog({ initialParity = 'all', onClose }: { initialPar
       </datalist>
       {offGrid > 0 && (
         <p className="small muted">
-          {offGrid} {offGrid === 1 ? 'hodina nesedí' : 'hodiny nesedia'} so zvonením, tie tu nie sú a ostanú bez zmeny.
+          {offGrid === 1
+            ? t('1 hodina nesedí so zvonením, tá tu nie je a ostane bez zmeny.')
+            : t('{n} hodiny nesedia so zvonením, tie tu nie sú a ostanú bez zmeny.', { n: offGrid })}
         </p>
       )}
     </Modal>

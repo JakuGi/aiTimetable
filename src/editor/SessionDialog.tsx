@@ -5,12 +5,13 @@ import { fmt, fmtDuration, fmtTime, fromLocalInput, toLocalInput } from '../lib/
 import { sessionMinutes } from '../lib/planner';
 import type { Session } from '../lib/types';
 import { useGender } from '../lib/gender';
+import { t } from '../lib/i18n';
 
 const STATUS_TEXT: Record<Session['status'], string> = {
-  suggested: 'Návrh plánovača, zatiaľ neprijatý.',
-  planned: 'Naplánované.',
-  done: 'Hotovo.',
-  skipped: 'Vynechané.',
+  get suggested() { return t('Návrh plánovača, zatiaľ neprijatý.'); },
+  get planned() { return t('Naplánované.'); },
+  get done() { return t('Hotovo.'); },
+  get skipped() { return t('Vynechané.'); },
 };
 
 export function SessionDialog({
@@ -28,14 +29,14 @@ export function SessionDialog({
   const [start, setStart] = useState(toLocalInput(session.starts_at));
   const [end, setEnd] = useState(toLocalInput(session.ends_at));
   const [error, setError] = useState<string | null>(null);
-  const title = session.kind === 'leisure' ? 'Voľný čas' : (task?.title ?? 'Práca na úlohe');
+  const title = session.kind === 'leisure' ? t('Voľný čas') : (task?.title ?? t('Práca na úlohe'));
   const moved = start !== toLocalInput(session.starts_at) || end !== toLocalInput(session.ends_at);
 
   const act = async (status: Session['status']) => {
     if (moved) {
       const s = fromLocalInput(start);
       const e = fromLocalInput(end);
-      if (!s || !e || e <= s) return setError('Koniec musí byť po začiatku.');
+      if (!s || !e || e <= s) return setError(t('Koniec musí byť po začiatku.'));
       if (!(await update('sessions', session.id, { starts_at: s, ends_at: e, status }))) return;
     } else if (!(await setSessionStatus([session.id], status))) return;
     onClose();
@@ -52,12 +53,12 @@ export function SessionDialog({
       footer={
         <>
           <button type="button" className="btn btn-danger-ghost" onClick={del}>
-            {session.status === 'suggested' ? 'Zahodiť' : 'Odstrániť'}
+            {session.status === 'suggested' ? t('Zahodiť') : t('Odstrániť')}
           </button>
           <span className="spacer" />
           {session.status === 'suggested' && (
             <button type="button" className="btn btn-primary" onClick={() => act('planned')}>
-              Prijať do plánu
+              {t('Prijať do plánu')}
             </button>
           )}
           {session.status === 'planned' && session.kind === 'task' && (
@@ -66,18 +67,18 @@ export function SessionDialog({
                 {g('Nestihol som', 'Nestihla som')}
               </button>
               <button type="button" className="btn btn-primary" onClick={() => act('done')}>
-                Hotovo
+                {t('Hotovo')}
               </button>
             </>
           )}
           {session.status === 'planned' && session.kind === 'leisure' && moved && (
             <button type="button" className="btn btn-primary" onClick={() => act('planned')}>
-              Uložiť čas
+              {t('Uložiť čas')}
             </button>
           )}
           {(session.status === 'done' || session.status === 'skipped') && (
             <button type="button" className="btn btn-ghost" onClick={() => act('planned')}>
-              Vrátiť do plánu
+              {t('Vrátiť do plánu')}
             </button>
           )}
         </>
@@ -90,16 +91,16 @@ export function SessionDialog({
       <p className="muted">{STATUS_TEXT[session.status]}</p>
       {task && (
         <button type="button" className="link-btn" onClick={() => onOpenTask(task.id)}>
-          Otvoriť úlohu
+          {t('Otvoriť úlohu')}
         </button>
       )}
       <div className="row-2">
         <label className="field">
-          <span className="field-label">Presunúť začiatok</span>
+          <span className="field-label">{t('Presunúť začiatok')}</span>
           <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
         </label>
         <label className="field">
-          <span className="field-label">Koniec</span>
+          <span className="field-label">{t('Koniec')}</span>
           <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
         </label>
       </div>

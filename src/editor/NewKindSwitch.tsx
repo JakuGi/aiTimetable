@@ -1,19 +1,20 @@
 import { addHours, startOfHour } from 'date-fns';
 import { useEditor } from './Editor';
 import { Segmented } from './fields';
+import { t } from '../lib/i18n';
 
 export type NewKind = 'task' | 'event' | 'reminder';
 
 const OPTIONS: { value: NewKind; label: string }[] = [
-  { value: 'task', label: 'Úloha' },
-  { value: 'event', label: 'Udalosť' },
-  { value: 'reminder', label: 'Pripomienka' },
+  { value: 'task', get label() { return t('Úloha'); } },
+  { value: 'event', get label() { return t('Udalosť'); } },
+  { value: 'reminder', get label() { return t('Pripomienka'); } },
 ];
 
 export const NEW_TITLES: Record<NewKind, string> = {
-  task: 'Nová úloha',
-  event: 'Nová udalosť',
-  reminder: 'Nová pripomienka',
+  get task() { return t('Nová úloha'); },
+  get event() { return t('Nová udalosť'); },
+  get reminder() { return t('Nová pripomienka'); },
 };
 
 /**
@@ -42,7 +43,7 @@ export function NewKindSwitch({
   };
   return (
     <div className="new-kind">
-      <Segmented label="Čo pridávaš" value={value} onChange={change} options={OPTIONS} />
+      <Segmented label={t('Čo pridávaš')} value={value} onChange={change} options={OPTIONS} />
     </div>
   );
 }

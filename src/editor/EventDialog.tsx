@@ -8,6 +8,7 @@ import { fmt, fromLocalInput, parseInput, toDateInput, toLocalInput } from '../l
 import type { CalendarEvent, EventKind } from '../lib/types';
 import { CategorySelect, Field, Segmented } from './fields';
 import { NEW_TITLES, NewKindSwitch } from './NewKindSwitch';
+import { t } from '../lib/i18n';
 
 export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEvent>; onClose: () => void }) {
   const { insert, update, remove, event_templates } = useData();
@@ -52,8 +53,8 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
   };
 
   const save = async () => {
-    if (!title.trim()) return setError('Doplň názov.');
-    if (!starts) return setError('Doplň začiatok.');
+    if (!title.trim()) return setError(t('Doplň názov.'));
+    if (!starts) return setError(t('Doplň začiatok.'));
     let startsAt: string;
     let endsAt: string | null = null;
     if (allDay) {
@@ -63,7 +64,7 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
       startsAt = fromLocalInput(starts)!;
       endsAt = isReminder ? null : fromLocalInput(ends);
     }
-    if (endsAt && endsAt < startsAt) return setError('Koniec musí byť po začiatku.');
+    if (endsAt && endsAt < startsAt) return setError(t('Koniec musí byť po začiatku.'));
 
     const row = {
       title: title.trim(),
@@ -103,21 +104,21 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
 
   return (
     <Modal
-      title={initial.id ? 'Upraviť v kalendári' : NEW_TITLES[isReminder ? 'reminder' : 'event']}
+      title={initial.id ? t('Upraviť v kalendári') : NEW_TITLES[isReminder ? 'reminder' : 'event']}
       onClose={onClose}
       footer={
         <>
           {initial.id && (
             <button type="button" className="btn btn-danger-ghost" onClick={del}>
-              Odstrániť
+              {t('Odstrániť')}
             </button>
           )}
           <span className="spacer" />
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Zrušiť
+            {t('Zrušiť')}
           </button>
           <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>
-            {initial.id ? 'Uložiť zmeny' : 'Pridať'}
+            {initial.id ? t('Uložiť zmeny') : t('Pridať')}
           </button>
         </>
       }
@@ -136,7 +137,7 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
       {/* a new item picks event / reminder in the switch above; the finer kind only for events */}
       {(initial.id || !isReminder) && (
         <Segmented
-          label="Druh"
+          label={t('Druh')}
           value={kind}
           onChange={changeKind}
           options={(Object.keys(EVENT_KINDS) as EventKind[])
@@ -148,45 +149,45 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
             }))}
         />
       )}
-      <Field label="Názov">
+      <Field label={t('Názov')}>
         <input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={isReminder ? 'Napr. Zobrať tenisky na telesnú' : kind === 'commute' ? 'Napr. Bus do školy' : 'Napr. Tréning'}
+          placeholder={isReminder ? t('Napr. Zobrať tenisky na telesnú') : kind === 'commute' ? t('Napr. Bus do školy') : t('Napr. Tréning')}
           maxLength={200}
         />
       </Field>
       <label className="check">
         <input type="checkbox" checked={allDay} onChange={(e) => toggleAllDay(e.target.checked)} />
-        Celý deň
+        {t('Celý deň')}
       </label>
       <div className="row-2">
-        <Field label={isReminder ? 'Kedy' : 'Začiatok'}>
+        <Field label={isReminder ? t('Kedy') : t('Začiatok')}>
           <input type={allDay ? 'date' : 'datetime-local'} value={starts} onChange={(e) => setStarts(e.target.value)} />
         </Field>
         {!isReminder && (
-          <Field label="Koniec">
+          <Field label={t('Koniec')}>
             <input type={allDay ? 'date' : 'datetime-local'} value={ends} onChange={(e) => setEnds(e.target.value)} />
           </Field>
         )}
       </div>
-      <Field label={kind === 'commute' ? 'Odkiaď, kam, číslo spoja' : 'Miesto'}>
+      <Field label={kind === 'commute' ? t('Odkiaď, kam, číslo spoja') : t('Miesto')}>
         <input
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder={kind === 'commute' ? 'Napr. Bus 23, Hlavná stanica → Škola' : ''}
+          placeholder={kind === 'commute' ? t('Napr. Bus 23, Hlavná stanica → Škola') : ''}
           maxLength={200}
         />
       </Field>
-      <Field label="Poznámka">
+      <Field label={t('Poznámka')}>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={5000} />
       </Field>
       <div className="row-2">
-        <Field label="Kategória">
+        <Field label={t('Kategória')}>
           <CategorySelect value={categoryId} onChange={setCategoryId} />
         </Field>
-        <Field label="Upozornenie">
+        <Field label={t('Upozornenie')}>
           <select
             value={remind === null ? '' : String(remind)}
             onChange={(e) => setRemind(e.target.value === '' ? null : Number(e.target.value))}
@@ -199,19 +200,19 @@ export function EventDialog({ initial, onClose }: { initial: Partial<CalendarEve
           </select>
         </Field>
       </div>
-      <Field label="Farba">
-        <ColorSwatches label="Farba" value={color} onChange={setColor} allowNone="Podľa kategórie" />
+      <Field label={t('Farba')}>
+        <ColorSwatches label={t('Farba')} value={color} onChange={setColor} allowNone={t('Podľa kategórie')} />
       </Field>
       {!isReminder && (
         <label className="check">
           <input type="checkbox" checked={blocks} onChange={(e) => setBlocks(e.target.checked)} />
-          Počas tohto času mi neplánuj úlohy
+          {t('Počas tohto času mi neplánuj úlohy')}
         </label>
       )}
       {!initial.id && !isReminder && !allDay && !event_templates.some((t) => t.title === title.trim()) && (
         <label className="check">
           <input type="checkbox" checked={asTemplate} onChange={(e) => setAsTemplate(e.target.checked)} />
-          {kind === 'commute' ? 'Uložiť aj ako spoj, aby som ho nabudúce vložil jedným klikom' : 'Uložiť aj na rýchle pridávanie'}
+          {kind === 'commute' ? t('Uložiť aj ako spoj, aby som ho nabudúce vložil jedným klikom') : t('Uložiť aj na rýchle pridávanie')}
         </label>
       )}
       {error && <p className="form-error">{error}</p>}

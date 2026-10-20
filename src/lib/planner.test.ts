@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fixedTime, plan, placeLeisure, planFollowUp, subtract, type PlannerProfile } from './planner';
+import { plan, planFollowUp, subtract, type PlannerProfile } from './planner';
 import { weekParity } from './time';
 import type { CalendarEvent, RoutineBlock, Session, Task } from './types';
 
@@ -317,103 +317,49 @@ describe('breaks', () => {
   });
 });
 
-describe('free time windows', () => {
+describe('free time between work', () => {
   const at = (day: number, h: number, m = 0) => new Date(2026, 9, day, h, m).getTime();
-  const school = routine({ id: 'school', end_time: '13:35:00' });
-  const bus: CalendarEvent = {
-    id: 'bus',
-    user_id: 'u',
-    title: 'Bus domov',
-    kind: 'commute',
-    starts_at: new Date(2026, 9, 12, 13, 50).toISOString(),
-    ends_at: new Date(2026, 9, 12, 14, 25).toISOString(),
-    all_day: false,
-    location: null,
-    notes: null,
-    category_id: null,
-    color: null,
-    remind_minutes_before: null,
-    blocks_planning: true,
-  };
-  const window = (day: number, p: Partial<PlannerProfile>, extra: { events?: CalendarEvent[]; sessions?: Session[] } = {}) => {
-    const prof = { ...profile, ...p };
-    const fixed = fixedTime(new Date(2026, 9, day), { profile: prof, routine: [school], events: extra.events ?? [], sessions: extra.sessions ?? [] });
-    const when = prof.leisure_when as 'after_school' | 'evening' | 'before_sleep' | 'custom';
-    return placeLeisure(when, prof.leisure_start ?? null, prof.leisure_minutes_per_day, fixed);
-  };
+  const oneDay = { ...profile, planning_horizon_days: 1, max_focus_minutes_per_day: 720 };
+  const worked = (suggestions: { start: Date; end: Date }[]) =>
+    suggestions.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60000, 0);
 
-  it('after school starts once the bus home arrives', () => {
-    expect(window(12, { leisure_when: 'after_school' }, { events: [bus] })).toEqual([{ start: at(12, 14, 25), end: at(12, 15, 25) }]);
-    // no school on Saturday: evening instead
-    expect(window(17, { leisure_when: 'after_school' })).toEqual([{ start: at(17, 18), end: at(17, 19) }]);
-  });
-
-  it('evening, before sleep and a set time', () => {
-    expect(window(12, { leisure_when: 'evening' })).toEqual([{ start: at(12, 18), end: at(12, 19) }]);
-    expect(window(12, { leisure_when: 'before_sleep' })).toEqual([{ start: at(12, 19), end: at(12, 20) }]);
-    expect(window(12, { leisure_when: 'custom', leisure_start: '15:30' })).toEqual([{ start: at(12, 15, 30), end: at(12, 16, 30) }]);
-  });
-
-  it('moves out of the way of work already accepted in the evening', () => {
-    const work: Session = {
-      id: 'w',
-      user_id: 'u',
-      kind: 'task',
-      task_id: 't1',
-      starts_at: new Date(2026, 9, 12, 18).toISOString(),
-      ends_at: new Date(2026, 9, 12, 19).toISOString(),
-      status: 'planned',
-    };
-    // 19:10-20:00 is too short, so it goes right before the work
-    expect(window(12, { leisure_when: 'evening' }, { sessions: [work] })).toEqual([{ start: at(12, 17), end: at(12, 18) }]);
-  });
-
-  it('flexible: work fills the day but leaves the free minutes somewhere', () => {
+  it('work fills the day but leaves the free minutes somewhere', () => {
     const { suggestions } = plan({
       now,
-      profile: { ...profile, planning_horizon_days: 1, focus_block_minutes: 300, max_focus_minutes_per_day: 720, leisure_minutes_per_day: 120, leisure_when: 'flexible' },
+      profile: { ...oneDay, focus_block_minutes: 300, leisure_minutes_per_day: 120 },
       routine: [],
       events: [],
       sessions: [],
       tasks: [task({ estimated_minutes: 900 })],
     });
-    const total = suggestions.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60000, 0);
     // 12 h day: 580 min of work + 2 breaks leaves exactly 2 h free
-    expect(total).toBe(580);
+    expect(worked(suggestions)).toBe(580);
   });
 
-  it('per day: a day switched off keeps no free time', () => {
-    const days = Array.from({ length: 7 }, () => ({ when: 'evening' as const, start: null, minutes: 60 }));
+  it('none kept when switched off', () => {
     const { suggestions } = plan({
       now,
-      profile: {
-        ...profile,
-        planning_horizon_days: 1,
-        focus_block_minutes: 720,
-        max_focus_minutes_per_day: 720,
-        leisure_when: 'per_day',
-        leisure_days: [{ when: 'off', start: null, minutes: 0 }, ...days.slice(1)],
-      },
+      profile: { ...oneDay, focus_block_minutes: 720, leisure_minutes_per_day: 0 },
       routine: [],
       events: [],
       sessions: [],
       tasks: [task({ estimated_minutes: 720 })],
     });
     expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].end.getHours()).toBe(20);
+    expect(suggestions[0].end.getTime()).toBe(at(12, 20));
   });
 
-  it('gives the window up only when a deadline needs it', () => {
+  it('gives the gaps up when a deadline needs them', () => {
     const { suggestions, warnings } = plan({
       now,
-      profile: { ...profile, planning_horizon_days: 1, focus_block_minutes: 720, max_focus_minutes_per_day: 720, leisure_when: 'evening' },
+      profile: { ...oneDay, focus_block_minutes: 720, leisure_minutes_per_day: 120 },
       routine: [],
       events: [],
       sessions: [],
       tasks: [task({ estimated_minutes: 700, deadline: new Date(2026, 9, 12, 20).toISOString() })],
     });
     expect(warnings).toHaveLength(0);
-    expect(suggestions.some((s) => overlaps(s, at(12, 18), at(12, 19)))).toBe(true);
+    expect(worked(suggestions)).toBe(700);
   });
 });
 
@@ -425,7 +371,7 @@ describe('free time reserved by hand', () => {
   it('keeps it empty and counts it as the day free time', () => {
     const { suggestions, intrusions } = plan({
       now,
-      profile: { ...oneDay, leisure_when: 'evening', leisure_minutes_per_day: 60 },
+      profile: { ...oneDay, leisure_minutes_per_day: 60 },
       routine: [],
       events: [],
       sessions: [],
@@ -433,15 +379,18 @@ describe('free time reserved by hand', () => {
       freeBlocks: reserved,
     });
     expect(suggestions.some((s) => overlaps(s, at(15), at(17)))).toBe(false);
-    // 2 h reserved covers the 1 h wanted, so the evening is not held back as well
-    expect(suggestions.some((s) => overlaps(s, at(18), at(19)))).toBe(true);
+    // 2 h reserved covers the 1 h wanted, so no gaps are held back besides it
+    expect(suggestions.map((s) => [s.start.getTime(), s.end.getTime()])).toEqual([
+      [at(8), at(15)],
+      [at(17), at(20)],
+    ]);
     expect(intrusions).toHaveLength(0);
   });
 
   it('is given up last, only for a deadline, and reported', () => {
     const { suggestions, warnings, intrusions } = plan({
       now,
-      profile: { ...oneDay, leisure_when: 'evening', leisure_minutes_per_day: 180 },
+      profile: { ...oneDay, leisure_minutes_per_day: 180 },
       routine: [],
       events: [],
       sessions: [],
@@ -449,7 +398,7 @@ describe('free time reserved by hand', () => {
       freeBlocks: reserved,
     });
     expect(warnings).toHaveLength(0);
-    // the automatic window (18:00-19:00) went first, the reserved time only for what was left
+    // the rest of the day went first, the reserved time only for what was left
     expect(suggestions.some((s) => overlaps(s, at(18), at(19)))).toBe(true);
     expect(intrusions.length).toBeGreaterThan(0);
     const taken = intrusions.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60000, 0);
@@ -469,18 +418,5 @@ describe('free time reserved by hand', () => {
     });
     expect(intrusions).toHaveLength(0);
     expect(warnings[0]).toMatchObject({ reason: 'horizon' });
-  });
-
-  it('when free time is drawn by hand only, no automatic window is kept', () => {
-    const { suggestions } = plan({
-      now,
-      profile: { ...oneDay, leisure_when: 'evening', leisure_auto: false },
-      routine: [],
-      events: [],
-      sessions: [],
-      tasks: [task({ estimated_minutes: 720 })],
-    });
-    expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].end.getTime()).toBe(at(20));
   });
 });

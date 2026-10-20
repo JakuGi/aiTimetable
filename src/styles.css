@@ -2952,43 +2952,6 @@ body:has(.checkin) .toasts {
 
 /* ------------------------------------------------------------------ free time settings */
 
-.leisure-modes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
-}
-.leisure-mode {
-  font: inherit;
-  display: grid;
-  gap: 2px;
-  align-content: start;
-  text-align: left;
-  padding: 10px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-m);
-  background: var(--surface);
-  color: var(--ink);
-  cursor: pointer;
-}
-.leisure-mode b {
-  font-size: 14px;
-}
-.leisure-mode span {
-  font-size: 12.5px;
-  color: var(--muted);
-  line-height: 1.35;
-}
-.leisure-mode:hover {
-  border-color: var(--ink-2);
-}
-.leisure-mode[aria-checked='true'] {
-  border-color: var(--leisure);
-  background: color-mix(in srgb, var(--leisure) 10%, var(--surface));
-  box-shadow: inset 3px 0 0 var(--leisure);
-}
-.leisure-inline input {
-  max-width: 140px;
-}
 .leisure-own {
   display: inline-flex;
   align-items: center;
@@ -3001,31 +2964,6 @@ body:has(.checkin) .toasts {
   font: inherit;
   font-size: 13px;
   padding: 5px 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-s);
-  background: var(--surface);
-  color: var(--ink);
-}
-.leisure-days {
-  display: grid;
-  gap: 6px;
-  margin: 4px 0 14px;
-}
-.leisure-day {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.leisure-day-name {
-  width: 28px;
-  font-weight: 700;
-}
-.leisure-day select,
-.leisure-day input {
-  font: inherit;
-  font-size: 14px;
-  padding: 6px 8px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-s);
   background: var(--surface);
@@ -3050,18 +2988,6 @@ body:has(.checkin) .toasts {
 }
 .leisure-preview li b {
   width: 22px;
-}
-/* name | when | (time) | how long, always fitting the width */
-.leisure-day {
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-columns: 28px minmax(0, 220px);
-  grid-auto-columns: minmax(0, 104px);
-}
-.leisure-day select,
-.leisure-day input {
-  width: 100%;
-  min-width: 0;
 }
 
 /* ------------------------------------------------------------------ now and next */
@@ -3161,15 +3087,6 @@ body:has(.checkin) .toasts {
 .block-reserved .block-title {
   font-weight: 700;
 }
-.leisure-band.is-hint {
-  background: color-mix(in srgb, var(--leisure) 4%, transparent);
-  border-left-style: dashed;
-  border-left-color: color-mix(in srgb, var(--leisure) 30%, transparent);
-}
-.leisure-band.is-hint .leisure-label {
-  opacity: 0.75;
-  font-weight: 500;
-}
 .grid-col.is-drawing {
   cursor: crosshair;
 }
@@ -3247,9 +3164,6 @@ body:has(.checkin) .toasts {
 .gender-option span {
   font-size: 13px;
   color: var(--muted);
-}
-.leisure-modes.two {
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 }
 
 @media (max-width: 760px) {
@@ -3397,4 +3311,134 @@ body:has(.checkin) .toasts {
 }
 .new-kind .segmented button {
   flex: 1;
+}
+
+/* ------------------------------------------------------------------ language, app download */
+
+.auth-extras {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+}
+.lang-picker {
+  margin: 0;
+}
+.apk-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.apk-version {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ guided tour */
+
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+.tour-block {
+  position: fixed;
+  pointer-events: auto;
+}
+.tour-dim {
+  position: fixed;
+  inset: 0;
+  background: rgb(14 19 48 / 0.55);
+}
+.tour-hole {
+  position: fixed;
+  border-radius: var(--radius-m);
+  box-shadow: 0 0 0 9999px rgb(14 19 48 / 0.55);
+  outline: 2px solid var(--pen);
+  outline-offset: 2px;
+  transition:
+    top 0.2s ease,
+    left 0.2s ease,
+    width 0.2s ease,
+    height 0.2s ease;
+}
+.tour-hole.is-click {
+  animation: tour-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+  50% {
+    outline-color: color-mix(in srgb, var(--pen) 35%, transparent);
+    outline-offset: 6px;
+  }
+}
+.tour-card {
+  position: fixed;
+  width: min(320px, calc(100vw - 24px));
+  padding: 16px 18px 14px;
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow), 0 20px 50px -20px rgb(0 0 0 / 0.5);
+  pointer-events: auto;
+}
+.tour-card.is-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.tour-card h2 {
+  margin: 4px 0 6px;
+  font-size: 18px;
+}
+.tour-card p {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.tour-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tour-hint {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pen);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-hole,
+  .tour-hole.is-click {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ inside the Android app */
+
+/* an app, not a page: no tap flash, no rubber band, no text selection by long press (inputs still select) */
+.in-app,
+.in-app body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.in-app body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.in-app input,
+.in-app textarea,
+.in-app select,
+.in-app [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
 }

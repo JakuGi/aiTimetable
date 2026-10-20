@@ -1,16 +1,17 @@
+import { t } from './i18n';
 import type { EventKind, Priority, RoutineKind, WeekParity } from './types';
 
 export const ROUTINE_KINDS: Record<RoutineKind, { label: string; color: string }> = {
-  class: { label: 'Vyučovanie', color: '#2B4BDB' },
-  work: { label: 'Práca, brigáda', color: '#7A5AF8' },
-  leisure: { label: 'Voľný čas', color: '#E8A317' },
-  other: { label: 'Iné, nemám čas', color: '#5E6B85' },
+  class: { get label() { return t('Vyučovanie'); }, color: '#2B4BDB' },
+  work: { get label() { return t('Práca, brigáda'); }, color: '#7A5AF8' },
+  leisure: { get label() { return t('Voľný čas'); }, color: '#E8A317' },
+  other: { get label() { return t('Iné, nemám čas'); }, color: '#5E6B85' },
 };
 
 export const PARITY_LABELS: Record<WeekParity, string> = {
-  all: 'Každý týždeň',
-  odd: 'Nepárny týždeň',
-  even: 'Párny týždeň',
+  get all() { return t('Každý týždeň'); },
+  get odd() { return t('Nepárny týždeň'); },
+  get even() { return t('Párny týždeň'); },
 };
 
 export const DEFAULT_CLASS_PERIODS = [
@@ -25,18 +26,18 @@ export const DEFAULT_CLASS_PERIODS = [
 ];
 
 export const EVENT_KINDS: Record<EventKind, { label: string; color: string }> = {
-  event: { label: 'Udalosť', color: '#12A39A' },
-  work: { label: 'Práca na niečom', color: '#7A5AF8' },
-  commute: { label: 'Cesta', color: '#7C879C' },
-  reminder: { label: 'Pripomienka', color: '#E2483D' },
-  leisure: { label: 'Voľný čas', color: '#E8A317' },
+  event: { get label() { return t('Udalosť'); }, color: '#12A39A' },
+  work: { get label() { return t('Práca na niečom'); }, color: '#7A5AF8' },
+  commute: { get label() { return t('Cesta'); }, color: '#7C879C' },
+  reminder: { get label() { return t('Pripomienka'); }, color: '#E2483D' },
+  leisure: { get label() { return t('Voľný čas'); }, color: '#E8A317' },
 };
 
 export const PRIORITY_LABELS: Record<Priority, string> = {
-  1: 'Nízka',
-  2: 'Stredná',
-  3: 'Vysoká',
-  4: 'Kritická',
+  get [1]() { return t('Nízka'); },
+  get [2]() { return t('Stredná'); },
+  get [3]() { return t('Vysoká'); },
+  get [4]() { return t('Kritická'); },
 };
 
 export const DEFAULT_PRIORITY_COLORS = ['#8FB8A8', '#F2C14E', '#F08A4B', '#E2483D'];
@@ -49,14 +50,14 @@ export const SWATCHES = [
 ];
 
 export const REMIND_OPTIONS: { value: number | null; label: string }[] = [
-  { value: null, label: 'Bez upozornenia' },
-  { value: 0, label: 'V čase začiatku' },
-  { value: 5, label: '5 min vopred' },
-  { value: 10, label: '10 min vopred' },
-  { value: 15, label: '15 min vopred' },
-  { value: 30, label: '30 min vopred' },
-  { value: 60, label: '1 hodinu vopred' },
-  { value: 1440, label: '1 deň vopred' },
+  { value: null, get label() { return t('Bez upozornenia'); } },
+  { value: 0, get label() { return t('V čase začiatku'); } },
+  { value: 5, get label() { return t('5 min vopred'); } },
+  { value: 10, get label() { return t('10 min vopred'); } },
+  { value: 15, get label() { return t('15 min vopred'); } },
+  { value: 30, get label() { return t('30 min vopred'); } },
+  { value: 60, get label() { return t('1 hodinu vopred'); } },
+  { value: 1440, get label() { return t('1 deň vopred'); } },
 ];
 
 export function priorityColor(colors: string[] | undefined, p: Priority) {

@@ -5,7 +5,8 @@ import { useEditor } from '../editor/Editor';
 import { useCalendarItems, useRoutineColor } from '../lib/useCalendarItems';
 import { ROUTINE_KINDS } from '../lib/meta';
 import {
-  WEEKDAY_SHORT,
+  weekdayShort,
+  weekdaysShort,
   fmt,
   isoWeekday,
   minutesToTime,
@@ -16,15 +17,16 @@ import {
 } from '../lib/time';
 import type { RoutineBlock, RoutineKind } from '../lib/types';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { t } from '../lib/i18n';
 
 function daysLabel(days: number[]) {
   const sorted = [...days].sort();
   const contiguous = sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
-  if (sorted.length > 2 && contiguous) return `${WEEKDAY_SHORT[sorted[0] - 1]}–${WEEKDAY_SHORT[sorted[sorted.length - 1] - 1]}`;
-  return sorted.map((d) => WEEKDAY_SHORT[d - 1]).join(', ');
+  if (sorted.length > 2 && contiguous) return `${weekdayShort(sorted[0] - 1)}–${weekdayShort(sorted[sorted.length - 1] - 1)}`;
+  return sorted.map((d) => weekdayShort(d - 1)).join(', ');
 }
 
-const parityNote = (b: RoutineBlock) => (b.week_parity === 'odd' ? ', nepárny' : b.week_parity === 'even' ? ', párny' : '');
+const parityNote = (b: RoutineBlock) => (b.week_parity === 'odd' ? t(', nepárny') : b.week_parity === 'even' ? t(', párny') : '');
 
 export function RoutinePage() {
   const { routine_blocks, profile } = useData();
@@ -47,34 +49,34 @@ export function RoutinePage() {
     <div className="page page-routine">
       <header className="toolbar">
         <div className="toolbar-nav">
-          <h1 className="toolbar-title">Môj týždeň</h1>
-          <div className="segmented small" role="radiogroup" aria-label="Zobrazený týždeň">
+          <h1 className="toolbar-title">{t('Rozvrh')}</h1>
+          <div className="segmented small" role="radiogroup" aria-label={t('Zobrazený týždeň')}>
             {(['odd', 'even'] as const).map((p) => (
               <button key={p} role="radio" aria-checked={shown === p} onClick={() => setShown(p)}>
-                {p === 'odd' ? 'Nepárny' : 'Párny'}
-                {p === current ? ' (teraz)' : ''}
+                {p === 'odd' ? t('Nepárny') : t('Párny')}
+                {p === current ? ` (${t('teraz')})` : ''}
               </button>
             ))}
           </div>
         </div>
         <div className="toolbar-actions">
           <button className="btn btn-ghost" onClick={() => editor.editRoutine({})}>
-            Pridať blok
+            {t('Pridať blok')}
           </button>
-          <button className="btn btn-primary" onClick={() => editor.editClassGrid('all')}>
-            Zapísať rozvrh hodín
+          <button className="btn btn-primary" data-tour="class-grid" onClick={() => editor.editClassGrid('all')}>
+            {t('Zapísať rozvrh hodín')}
           </button>
         </div>
       </header>
       <p className="lede">
-        Čo sa opakuje každý týždeň. Všetko mimo týchto blokov (
-        {profile ? minutesToTime(timeToMinutes(profile.day_start)) : '7:00'}–
-        {profile ? minutesToTime(timeToMinutes(profile.day_end)) : '22:00'}) je tvoj voľný čas na plánovanie. Autobusy
-        pridávaš v Rozvrhu ako spoje.
+        {t('Čo sa opakuje každý týždeň. Všetko mimo týchto blokov ({from}–{to}) je tvoj voľný čas na plánovanie. Autobusy pridávaš v Môj týždeň ako spoje.', {
+          from: profile ? minutesToTime(timeToMinutes(profile.day_start)) : '7:00',
+          to: profile ? minutesToTime(timeToMinutes(profile.day_end)) : '22:00',
+        })}
       </p>
       {narrow && (
-        <div className="weekday-picker" role="radiogroup" aria-label="Deň">
-          {WEEKDAY_SHORT.map((d, i) => (
+        <div className="weekday-picker" role="radiogroup" aria-label={t('Deň')}>
+          {weekdaysShort().map((d, i) => (
             <button key={d} role="radio" aria-checked={dayIdx === i} onClick={() => setDayIdx(i)}>
               {d}
             </button>
@@ -106,7 +108,8 @@ export function RoutinePage() {
           {grouped.length === 0 && (
             <div className="empty">
               <p>
-                Zatiaľ prázdne. Začni tlačidlom <b>Zapísať rozvrh hodín</b>, vyplníš ho ako tabuľku v škole.
+                {t('Zatiaľ prázdne. Začni tlačidlom')} <b>{t('Zapísať rozvrh hodín')}</b>
+                {t(', vyplníš ho ako tabuľku v škole.')}
               </p>
             </div>
           )}
@@ -116,13 +119,13 @@ export function RoutinePage() {
               {g.kind === 'class' && (
                 <div className="quick-row">
                   <button className="link-btn" onClick={() => editor.editClassGrid('all')}>
-                    Upraviť v tabuľke
+                    {t('Upraviť v tabuľke')}
                   </button>
                   <button className="link-btn" onClick={() => editor.editClassGrid('odd')}>
-                    len nepárny
+                    {t('len nepárny')}
                   </button>
                   <button className="link-btn" onClick={() => editor.editClassGrid('even')}>
-                    len párny
+                    {t('len párny')}
                   </button>
                 </div>
               )}
@@ -142,8 +145,14 @@ export function RoutinePage() {
                       </span>
                       {(b.valid_from || b.valid_until) && (
                         <span className="routine-meta">
-                          platí {b.valid_from ? `od ${fmt(`${b.valid_from}T00:00`, 'd. M. yyyy')} ` : ''}
-                          {b.valid_until ? `do ${fmt(`${b.valid_until}T00:00`, 'd. M. yyyy')}` : ''}
+                          {b.valid_from && b.valid_until
+                            ? t('platí od {from} do {to}', {
+                                from: fmt(`${b.valid_from}T00:00`, 'd. M. yyyy'),
+                                to: fmt(`${b.valid_until}T00:00`, 'd. M. yyyy'),
+                              })
+                            : b.valid_from
+                              ? t('platí od {from}', { from: fmt(`${b.valid_from}T00:00`, 'd. M. yyyy') })
+                              : t('platí do {to}', { to: fmt(`${b.valid_until}T00:00`, 'd. M. yyyy') })}
                         </span>
                       )}
                     </button>

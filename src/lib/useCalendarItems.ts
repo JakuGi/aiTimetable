@@ -8,6 +8,7 @@ import { FREELANCE_CATEGORY, FREELANCE_COLOR, fmtMoney, gigEarnings } from './fr
 import { atMinutes, fmtTime, timeToMinutes } from './time';
 import { LEISURE_GREEN, leisureBands, type LeisureBand } from './leisure';
 import type { GridItem, StripItem } from '../components/TimeGrid';
+import { t } from './i18n';
 import type { CalendarEvent, RoutineBlock } from './types';
 
 export function useRoutineColor() {
@@ -47,7 +48,7 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
           id: `r-${r.id}-${day.getTime()}`,
           title: r.title,
           detail:
-            [r.week_parity === 'odd' ? 'nepárny' : r.week_parity === 'even' ? 'párny' : null, r.location ?? r.notes]
+            [r.week_parity === 'odd' ? t('nepárny') : r.week_parity === 'even' ? t('párny') : null, r.location ?? r.notes]
               .filter(Boolean)
               .join(', ') || undefined,
           start: atMinutes(day, timeToMinutes(r.start_time)),
@@ -58,24 +59,7 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         });
       }
     }
-    if (opts.routineOnly) {
-      // the usual week: where free time falls given just the routine
-      if (data.profile) {
-        bands = leisureBands(
-          days,
-          { profile: data.profile, routine: data.routine_blocks, events: [], sessions: [], gigs: [] },
-          {
-            includePast: true,
-            now: new Date(0),
-            noGaps: true,
-            routineOn: (r, day) =>
-              r.weekdays.includes(((day.getDay() + 6) % 7) + 1) &&
-              (!opts.parity || r.week_parity === 'all' || r.week_parity === opts.parity),
-          },
-        );
-      }
-      return { items, strip, bands };
-    }
+    if (opts.routineOnly) return { items, strip, bands };
 
     for (const e of data.events) {
       const s = new Date(e.starts_at);
@@ -125,8 +109,8 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         data.free_blocks.some((f) => new Date(f.starts_at).getTime() < sEnd && new Date(f.ends_at).getTime() > s.getTime());
       items.push({
         id: `s-${ses.id}`,
-        title: task?.title ?? 'Úloha',
-        detail: intrudes ? 'z vyhradeného voľna' : undefined,
+        title: task?.title ?? t('Úloha'),
+        detail: intrudes ? t('z vyhradeného voľna') : undefined,
         intrudes,
         start: s,
         end: new Date(ses.ends_at),
@@ -156,7 +140,7 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
             strip.push({
               id: `g-${g.id}`,
               day,
-              title: `${g.title} (odovzdať do ${fmtTime(d)})`,
+              title: t('{title} (odovzdať do {time})', { title: g.title, time: fmtTime(d) }),
               color,
               kind: 'deadline',
               onClick: () => editor.editGig(g),
@@ -172,7 +156,7 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         if (before > 0) {
           items.push({
             id: `gp-${g.id}`,
-            title: g.prep_minutes ? (g.travel_minutes ? 'Príprava a cesta' : 'Príprava') : 'Cesta',
+            title: g.prep_minutes ? (g.travel_minutes ? t('Príprava a cesta') : t('Príprava')) : t('Cesta'),
             detail: g.title,
             start: new Date(s.getTime() - before * 60_000),
             end: s,
@@ -184,7 +168,7 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         if (g.travel_minutes > 0) {
           items.push({
             id: `gt-${g.id}`,
-            title: 'Cesta späť',
+            title: t('Cesta späť'),
             start: e,
             end: new Date(e.getTime() + g.travel_minutes * 60_000),
             color,
@@ -214,8 +198,8 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
       if (e.getTime() <= from || s.getTime() >= to) continue;
       items.push({
         id: `f-${f.id}`,
-        title: f.note || 'Vyhradené voľno',
-        detail: f.note ? 'vyhradené voľno' : undefined,
+        title: f.note || t('Vyhradené voľno'),
+        detail: f.note ? t('vyhradené voľno') : undefined,
         start: s,
         end: e,
         color: LEISURE_GREEN,
@@ -225,18 +209,18 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
       });
     }
 
-    for (const t of data.tasks) {
-      if (t.status !== 'todo' || !t.deadline) continue;
-      const d = new Date(t.deadline);
+    for (const task of data.tasks) {
+      if (task.status !== 'todo' || !task.deadline) continue;
+      const d = new Date(task.deadline);
       const day = days.find((x) => isSameDay(x, d));
       if (!day) continue;
       strip.push({
-        id: `t-${t.id}`,
+        id: `t-${task.id}`,
         day,
-        title: `${t.title} (do ${fmtTime(d)})`,
-        color: priorityColor(data.profile?.priority_colors, t.priority),
+        title: t('{title} (do {time})', { title: task.title, time: fmtTime(d) }),
+        color: priorityColor(data.profile?.priority_colors, task.priority),
         kind: 'deadline',
-        onClick: () => editor.editTask(t),
+        onClick: () => editor.editTask(task),
       });
     }
 

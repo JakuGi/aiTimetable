@@ -4,9 +4,10 @@ import { addDays, addMonths, endOfMonth, isSameDay, isSameMonth, isToday, startO
 import { useData } from '../lib/data';
 import { useEditor } from '../editor/Editor';
 import { useCalendarItems } from '../lib/useCalendarItems';
-import { WEEKDAY_SHORT, atMinutes, fmt, fmtTime, toDateInput, weekStart } from '../lib/time';
+import { weekdaysShort, atMinutes, fmt, fmtTime, toDateInput, weekStart } from '../lib/time';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { Chevron } from './WeekPage';
+import { plural, t } from '../lib/i18n';
 
 export function MonthPage() {
   const [params, setParams] = useSearchParams();
@@ -44,28 +45,28 @@ export function MonthPage() {
     <div className="page page-month">
       <header className="toolbar">
         <div className="toolbar-nav">
-          <button className="icon-btn" onClick={() => setMonth(addMonths(month, -1))} aria-label="Predchádzajúci mesiac">
+          <button className="icon-btn" onClick={() => setMonth(addMonths(month, -1))} aria-label={t('Predchádzajúci mesiac')}>
             <Chevron dir="left" />
           </button>
           {!narrow && (
             <button className="btn btn-ghost" onClick={() => setMonth(new Date())} disabled={isSameMonth(month, new Date())}>
-              Tento mesiac
+              {t('Tento mesiac')}
             </button>
           )}
-          <button className="icon-btn" onClick={() => setMonth(addMonths(month, 1))} aria-label="Ďalší mesiac">
+          <button className="icon-btn" onClick={() => setMonth(addMonths(month, 1))} aria-label={t('Ďalší mesiac')}>
             <Chevron dir="right" />
           </button>
           <h1 className="toolbar-title">{fmt(month, 'LLLL yyyy')}</h1>
         </div>
         <div className="toolbar-actions">
           <button className="btn btn-primary" onClick={() => addEvent(narrow ? selected : new Date())}>
-            Pridať udalosť
+            {t('Pridať udalosť')}
           </button>
         </div>
       </header>
 
       <div className="month" role="grid" aria-label={fmt(month, 'LLLL yyyy')}>
-        {WEEKDAY_SHORT.map((d) => (
+        {weekdaysShort().map((d) => (
           <div key={d} className="month-dow" role="columnheader">
             {d}
           </div>
@@ -107,7 +108,7 @@ export function MonthPage() {
               <button
                 className="month-date"
                 onClick={() => navigate(`/?d=${toDateInput(day)}&view=day`)}
-                aria-label={`Otvoriť ${fmt(day, 'EEEE d. MMMM')}`}
+                aria-label={t('Otvoriť {day}', { day: fmt(day, 'EEEE d. MMMM') })}
               >
                 {fmt(day, 'd')}
               </button>
@@ -127,14 +128,14 @@ export function MonthPage() {
                     <b>{fmtTime(i.start)}</b> {i.title}
                   </button>
                 ))}
-                {events.length > 3 && <span className="month-more">a ďalšie {events.length - 3}</span>}
+                {events.length > 3 && <span className="month-more">{t('a ďalšie {n}', { n: events.length - 3 })}</span>}
                 {work > 0 && (
                   <span className="month-work">
-                    {work} {work === 1 ? 'blok' : work < 5 ? 'bloky' : 'blokov'} práce
+                    {t('{n} {blocks} práce', { n: work, blocks: plural(work, 'blok', 'bloky', 'blokov') })}
                   </span>
                 )}
               </div>
-              <button className="month-add" aria-label={`Pridať udalosť ${fmt(day, 'd. M.')}`} onClick={() => addEvent(day)}>
+              <button className="month-add" aria-label={t('Pridať udalosť {date}', { date: fmt(day, 'd. M.') })} onClick={() => addEvent(day)}>
                 +
               </button>
             </div>
@@ -147,15 +148,15 @@ export function MonthPage() {
           <div className="agenda-head">
             <h2>{fmt(selected, 'EEEE d. MMMM')}</h2>
             <button className="link-btn" onClick={() => navigate(`/?d=${toDateInput(selected)}&view=day`)}>
-              Otvoriť v rozvrhu
+              {t('Otvoriť deň')}
             </button>
           </div>
-          {agendaChips.length === 0 && agenda.length === 0 && <p className="empty">Nič naplánované.</p>}
+          {agendaChips.length === 0 && agenda.length === 0 && <p className="empty">{t('Nič naplánované.')}</p>}
           <ul className="agenda-list">
             {agendaChips.map((c) => (
               <li key={c.id}>
                 <button className="agenda-item" style={{ '--c': c.color } as CSSProperties} onClick={c.onClick}>
-                  <span className="agenda-time">{c.kind === 'deadline' ? 'termín' : c.kind === 'reminder' ? 'pripomienka' : 'celý deň'}</span>
+                  <span className="agenda-time">{c.kind === 'deadline' ? t('termín') : c.kind === 'reminder' ? 'pripomienka' : t('celý deň')}</span>
                   <span className="agenda-title">{c.title}</span>
                 </button>
               </li>
@@ -172,7 +173,7 @@ export function MonthPage() {
                   </span>
                   <span className="agenda-title">
                     {i.title}
-                    {i.variant === 'pencil' ? ' (návrh)' : ''}
+                    {i.variant === 'pencil' ? t(' (návrh)') : ''}
                   </span>
                 </button>
               </li>

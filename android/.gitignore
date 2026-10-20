@@ -1,0 +1,9 @@
+.gradle/
+build/
+app/build/
+local.properties
+# the release key never goes to git (keep a backup of it, updates need the same key)
+signing/
+*.jks
+*.keystore
+*.apk

@@ -1,6 +1,7 @@
 import { addDays, startOfDay } from 'date-fns';
 import { routineAppliesOn } from './planner';
 import { atMinutes, fmtDuration, fmtTime, MINUTE, timeToMinutes } from './time';
+import { t } from './i18n';
 import type { CalendarEvent, FreeBlock, Gig, Gender, RoutineBlock, Session, Task } from './types';
 
 export type NowKind = 'work' | 'school' | 'job' | 'commute' | 'event' | 'gig' | 'free' | 'other';
@@ -57,13 +58,13 @@ export function dayItems(input: NowInput): NowItem[] {
     if (!inRange(s, end)) continue;
     out.push({ kind: e.kind === 'commute' ? 'commute' : 'event', title: e.title, start: s, end, color: e.color ?? undefined, ref: { type: 'event', item: e } });
   }
-  const titles = new Map(input.tasks.map((t) => [t.id, t.title]));
+  const titles = new Map(input.tasks.map((task) => [task.id, task.title]));
   for (const s of input.sessions) {
     if (s.kind !== 'task' || s.status !== 'planned') continue;
     const start = new Date(s.starts_at);
     const end = new Date(s.ends_at);
     if (!inRange(start, end)) continue;
-    out.push({ kind: 'work', title: titles.get(s.task_id ?? '') ?? 'Práca na úlohe', start, end, ref: { type: 'session', item: s } });
+    out.push({ kind: 'work', title: titles.get(s.task_id ?? '') ?? t('Práca na úlohe'), start, end, ref: { type: 'session', item: s } });
   }
   for (const g of input.gigs) {
     if (g.mode !== 'event' || !g.starts_at || !g.ends_at || g.status === 'cancelled') continue;
@@ -84,7 +85,7 @@ export function dayItems(input: NowInput): NowItem[] {
     const start = new Date(f.starts_at);
     const end = new Date(f.ends_at);
     if (!inRange(start, end)) continue;
-    out.push({ kind: 'free', title: f.note || 'Vyhradené voľno', start, end, ref: { type: 'free', item: f } });
+    out.push({ kind: 'free', title: f.note || t('Vyhradené voľno'), start, end, ref: { type: 'free', item: f } });
   }
   return out.sort((a, b) => a.start.getTime() - b.start.getTime() || RANK[a.kind] - RANK[b.kind]);
 }
@@ -96,22 +97,22 @@ export interface NowState {
 
 /** What is going on right now, and what comes next (a gig counts from the moment to leave). */
 export function nowAndNext(input: NowInput): NowState {
-  const t = input.now.getTime();
+  const ms = input.now.getTime();
   const items = dayItems(input);
   const current =
     items
-      .filter((i) => i.start.getTime() <= t && t < i.end.getTime())
+      .filter((i) => i.start.getTime() <= ms && ms < i.end.getTime())
       .sort((a, b) => RANK[a.kind] - RANK[b.kind])[0] ?? null;
   const next =
     items
-      .filter((i) => i !== current && (i.leaveAt ?? i.start).getTime() > t)
+      .filter((i) => i !== current && (i.leaveAt ?? i.start).getTime() > ms)
       // not something that merely continues what's on now
       .filter((i) => !current || i.start.getTime() >= current.start.getTime())
       .sort((a, b) => (a.leaveAt ?? a.start).getTime() - (b.leaveAt ?? b.start).getTime() || RANK[a.kind] - RANK[b.kind])[0] ?? null;
   return { current, next };
 }
 
-const g = (gender: Gender | null | undefined, m: string, f: string) => (gender === 'f' ? f : m);
+const g = (gender: Gender | null | undefined, m: string, f: string) => t(gender === 'f' ? f : m);
 
 /** "35 min", "1 h 20 min" */
 const left = (ms: number) => fmtDuration(Math.max(1, Math.round(ms / MINUTE)));
@@ -123,8 +124,8 @@ export interface Line {
 }
 
 export function currentLine(i: NowItem | null, now: Date, gender: Gender | null | undefined): Line {
-  if (!i) return { lead: g(gender, 'Teraz si voľný', 'Teraz si voľná'), title: '', detail: 'nič práve neprebieha' };
-  const rest = `do ${fmtTime(i.end)} · ešte ${left(i.end.getTime() - now.getTime())}`;
+  if (!i) return { lead: g(gender, 'Teraz si voľný', 'Teraz si voľná'), title: '', detail: t('nič práve neprebieha') };
+  const rest = t('do {time} · ešte {left}', { time: fmtTime(i.end), left: left(i.end.getTime() - now.getTime()) });
   const lead: Record<NowKind, string> = {
     work: 'Práve máš na práci',
     school: 'Práve prebieha',
@@ -135,7 +136,7 @@ export function currentLine(i: NowItem | null, now: Date, gender: Gender | null 
     free: 'Práve máš voľno',
     other: 'Práve máš',
   };
-  return { lead: lead[i.kind], title: i.title, detail: rest };
+  return { lead: t(lead[i.kind]), title: i.title, detail: rest };
 }
 
 export function nextLine(i: NowItem | null, now: Date): Line | null {
@@ -144,24 +145,29 @@ export function nextLine(i: NowItem | null, now: Date): Line | null {
   const diff = at.getTime() - now.getTime();
   const tomorrow = startOfDay(at).getTime() !== startOfDay(now).getTime();
   // close: "O 25 min", later today: "O 15:25", tomorrow: "Zajtra o 8:00"
-  const when = tomorrow ? `Zajtra o ${fmtTime(at)}` : diff <= 120 * MINUTE ? `O ${left(diff)}` : `O ${fmtTime(at)}`;
+  const when = tomorrow
+    ? t('Zajtra o {time}', { time: fmtTime(at) })
+    : diff <= 120 * MINUTE
+      ? t('O {left}', { left: left(diff) })
+      : t('O {time}', { time: fmtTime(at) });
   const span = `${fmtTime(i.start)}–${fmtTime(i.end)}`;
   switch (i.kind) {
     case 'work':
-      return { lead: `${when} začínaš`, title: i.title, detail: span };
+      return { lead: t('{when} začínaš', { when }), title: i.title, detail: span };
     case 'school':
     case 'job':
     case 'other':
-      return { lead: `${when} ti začína`, title: i.title, detail: span };
+      return { lead: t('{when} ti začína', { when }), title: i.title, detail: span };
     case 'commute':
-      return { lead: `${when} ti ide`, title: i.title, detail: span };
+      return { lead: t('{when} ti ide', { when }), title: i.title, detail: span };
     case 'gig':
       return i.leaveAt
-        ? { lead: `${when} treba vyraziť na`, title: i.title, detail: `začiatok o ${fmtTime(i.start)}` }
-        : { lead: `${when} začína akcia`, title: i.title, detail: span };
+        ? { lead: t('{when} treba vyraziť na', { when }), title: i.title, detail: t('začiatok o {time}', { time: fmtTime(i.start) }) }
+        : { lead: t('{when} začína akcia', { when }), title: i.title, detail: span };
     case 'free':
-      return { lead: `${when} máš voľno`, title: i.title === 'Vyhradené voľno' ? '' : i.title, detail: span };
+      // drawn without a note: "máš voľno" says it all
+      return { lead: t('{when} máš voľno', { when }), title: i.ref.type === 'free' && !i.ref.item.note ? '' : i.title, detail: span };
     default:
-      return { lead: `${when} máš`, title: i.title, detail: span };
+      return { lead: t('{when} máš', { when }), title: i.title, detail: span };
   }
 }

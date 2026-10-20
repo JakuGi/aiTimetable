@@ -20,11 +20,12 @@ import { SettingsPage } from './pages/SettingsPage';
 import { FreelancePage } from './pages/FreelancePage';
 import { isConfigured } from './lib/supabase';
 import { Brand } from './components/Brand';
+import { t, useLang } from './lib/i18n';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="loading">Načítavam…</div>;
+  if (loading) return <div className="loading">{t('Načítavam…')}</div>;
   if (!session) return <Navigate to="/login" replace state={{ from: location }} />;
   return children;
 }
@@ -45,10 +46,10 @@ function NotConfigured() {
     <div className="auth">
       <main className="auth-card">
         <Brand />
-        <h1>Chýba pripojenie k databáze</h1>
+        <h1>{t('Chýba pripojenie k databáze')}</h1>
         <p>
-          Vytvor súbor <code>.env</code> podľa <code>.env.example</code> a doplň <code>VITE_SUPABASE_URL</code> a{' '}
-          <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> zo Supabase. Potom reštartuj <code>npm run dev</code>.
+          <code>.env</code> (<code>.env.example</code>): <code>VITE_SUPABASE_URL</code>,{' '}
+          <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>, <code>npm run dev</code>.
         </p>
       </main>
     </div>
@@ -105,6 +106,8 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
+  // a new language redraws every page (texts are looked up while rendering)
+  const lang = useLang();
   if (!isConfigured) return <NotConfigured />;
-  return <RouterProvider router={router} />;
+  return <RouterProvider key={lang} router={router} />;
 }

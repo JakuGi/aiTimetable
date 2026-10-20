@@ -3,6 +3,8 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { appUrl, supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { Brand } from '../components/Brand';
+import { ApkDownload, LanguagePicker } from '../components/AppExtras';
+import { t } from '../lib/i18n';
 
 function AuthShell({ title, children, foot }: { title: string; children: ReactNode; foot?: ReactNode }) {
   const { linkError, clearLinkError } = useAuth();
@@ -10,10 +12,10 @@ function AuthShell({ title, children, foot }: { title: string; children: ReactNo
     <div className="auth">
       <div className="auth-paper" aria-hidden="true">
         <div className="auth-sample">
-          <span className="s s1">Matematika</span>
-          <span className="s s2">Bus 23</span>
-          <span className="s s3">Referát</span>
-          <span className="s s4">Hry</span>
+          <span className="s s1">{t('Matematika')}</span>
+          <span className="s s2">{t('Bus 23')}</span>
+          <span className="s s3">{t('Referát')}</span>
+          <span className="s s4">{t('Hry')}</span>
           <span className="s-now" />
         </div>
       </div>
@@ -24,12 +26,16 @@ function AuthShell({ title, children, foot }: { title: string; children: ReactNo
           <p className="form-error" role="alert">
             {linkError}{' '}
             <button className="link-btn" onClick={clearLinkError}>
-              Skryť
+              {t('Skryť')}
             </button>
           </p>
         )}
         {children}
         {foot && <div className="auth-foot">{foot}</div>}
+        <div className="auth-extras">
+          <LanguagePicker />
+          <ApkDownload block />
+        </div>
       </main>
     </div>
   );
@@ -37,13 +43,13 @@ function AuthShell({ title, children, foot }: { title: string; children: ReactNo
 
 function translate(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes('invalid login credentials')) return 'Nesprávny e-mail alebo heslo.';
-  if (m.includes('email not confirmed')) return 'E-mail ešte nie je overený. Klikni na odkaz, ktorý sme ti poslali.';
-  if (m.includes('already registered')) return 'Účet s týmto e-mailom už existuje. Prihlás sa.';
-  if (m.includes('password should be at least')) return 'Heslo musí mať aspoň 8 znakov.';
+  if (m.includes('invalid login credentials')) return t('Nesprávny e-mail alebo heslo.');
+  if (m.includes('email not confirmed')) return t('E-mail ešte nie je overený. Klikni na odkaz, ktorý sme ti poslali.');
+  if (m.includes('already registered')) return t('Účet s týmto e-mailom už existuje. Prihlás sa.');
+  if (m.includes('password should be at least')) return t('Heslo musí mať aspoň 8 znakov.');
   if (m.includes('rate limit') || m.includes('security purposes'))
-    return 'Príliš veľa pokusov za krátky čas. Skús to o chvíľu znova.';
-  if (m.includes('unable to validate email') || m.includes('invalid format')) return 'Toto nevyzerá ako platný e-mail.';
+    return t('Príliš veľa pokusov za krátky čas. Skús to o chvíľu znova.');
+  if (m.includes('unable to validate email') || m.includes('invalid format')) return t('Toto nevyzerá ako platný e-mail.');
   return message;
 }
 
@@ -72,20 +78,20 @@ export function LoginPage() {
 
   return (
     <AuthShell
-      title="Prihlásenie"
+      title={t('Prihlásenie')}
       foot={
         <>
-          Nemáš účet? <Link to="/register">Zaregistruj sa</Link>
+          {t('Nemáš účet?')} <Link to="/register">{t('Zaregistruj sa')}</Link>
         </>
       }
     >
       <form onSubmit={submit} className="auth-form">
         <label className="field">
-          <span className="field-label">E-mail</span>
+          <span className="field-label">{t('E-mail')}</span>
           <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         <label className="field">
-          <span className="field-label">Heslo</span>
+          <span className="field-label">{t('Heslo')}</span>
           <input
             type="password"
             autoComplete="current-password"
@@ -101,10 +107,10 @@ export function LoginPage() {
         )}
         {unconfirmed && <ResendButton email={email.trim()} />}
         <button className="btn btn-primary btn-block" disabled={busy}>
-          {busy ? 'Prihlasujem…' : 'Prihlásiť sa'}
+          {busy ? t('Prihlasujem…') : t('Prihlásiť sa')}
         </button>
         <Link to="/forgot-password" className="small">
-          Zabudnuté heslo
+          {t('Zabudnuté heslo')}
         </Link>
       </form>
     </AuthShell>
@@ -125,8 +131,8 @@ export function RegisterPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (password.length < 8) return setError('Heslo musí mať aspoň 8 znakov.');
-    if (password !== password2) return setError('Heslá sa nezhodujú.');
+    if (password.length < 8) return setError(t('Heslo musí mať aspoň 8 znakov.'));
+    if (password !== password2) return setError(t('Heslá sa nezhodujú.'));
     setBusy(true);
     setError(null);
     const { data, error } = await supabase.auth.signUp({
@@ -137,31 +143,31 @@ export function RegisterPage() {
     setBusy(false);
     if (error) return setError(translate(error.message));
     // Supabase returns a user with no identities when the e-mail is already registered
-    if (data.user && data.user.identities?.length === 0) return setError('Účet s týmto e-mailom už existuje. Prihlás sa.');
+    if (data.user && data.user.identities?.length === 0) return setError(t('Účet s týmto e-mailom už existuje. Prihlás sa.'));
     if (data.session) navigate('/', { replace: true });
     else navigate('/check-email', { state: { email: email.trim() } });
   };
 
   return (
     <AuthShell
-      title="Nový účet"
+      title={t('Nový účet')}
       foot={
         <>
-          Už máš účet? <Link to="/login">Prihlás sa</Link>
+          {t('Už máš účet?')} <Link to="/login">{t('Prihlás sa')}</Link>
         </>
       }
     >
       <form onSubmit={submit} className="auth-form">
         <label className="field">
-          <span className="field-label">Meno</span>
+          <span className="field-label">{t('Meno')}</span>
           <input autoComplete="given-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
         </label>
         <label className="field">
-          <span className="field-label">E-mail</span>
+          <span className="field-label">{t('E-mail')}</span>
           <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         <label className="field">
-          <span className="field-label">Heslo</span>
+          <span className="field-label">{t('Heslo')}</span>
           <input
             type="password"
             autoComplete="new-password"
@@ -170,10 +176,10 @@ export function RegisterPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <span className="field-hint">Aspoň 8 znakov.</span>
+          <span className="field-hint">{t('Aspoň 8 znakov.')}</span>
         </label>
         <label className="field">
-          <span className="field-label">Heslo znova</span>
+          <span className="field-label">{t('Heslo znova')}</span>
           <input
             type="password"
             autoComplete="new-password"
@@ -188,7 +194,7 @@ export function RegisterPage() {
           </p>
         )}
         <button className="btn btn-primary btn-block" disabled={busy}>
-          {busy ? 'Vytváram účet…' : 'Vytvoriť účet'}
+          {busy ? t('Vytváram účet…') : t('Vytvoriť účet')}
         </button>
       </form>
     </AuthShell>
@@ -199,18 +205,18 @@ export function CheckEmailPage() {
   const email = (useLocation().state as { email?: string } | null)?.email ?? '';
   return (
     <AuthShell
-      title="Over svoj e-mail"
+      title={t('Over svoj e-mail')}
       foot={
         <>
-          Overené? <Link to="/login">Prihlás sa</Link>
+          {t('Overené?')} <Link to="/login">{t('Prihlás sa')}</Link>
         </>
       }
     >
       <p>
-        Poslali sme odkaz na <b>{email || 'tvoj e-mail'}</b>. Klikni naň a účet sa aktivuje. Odkaz môžeš otvoriť aj na inom
-        zariadení.
+        {t('Poslali sme odkaz na')} <b>{email || t('tvoj e-mail')}</b>.{' '}
+        {t('Klikni naň a účet sa aktivuje. Odkaz môžeš otvoriť aj na inom zariadení.')}
       </p>
-      <p className="small muted">Nič neprišlo? Pozri spam alebo si odkaz pošli znova.</p>
+      <p className="small muted">{t('Nič neprišlo? Pozri spam alebo si odkaz pošli znova.')}</p>
       {email && <ResendButton email={email} />}
     </AuthShell>
   );
@@ -226,7 +232,7 @@ function ResendButton({ email }: { email: string }) {
   return (
     <div className="resend">
       <button type="button" className="btn btn-ghost" onClick={resend} disabled={state === 'sending' || state === 'sent'}>
-        {state === 'sent' ? 'Odkaz odoslaný' : 'Poslať overovací odkaz znova'}
+        {state === 'sent' ? t('Odkaz odoslaný') : t('Poslať overovací odkaz znova')}
       </button>
       {state !== 'idle' && state !== 'sending' && state !== 'sent' && <p className="form-error">{state}</p>}
     </div>
@@ -250,24 +256,24 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthShell
-      title="Zabudnuté heslo"
+      title={t('Zabudnuté heslo')}
       foot={
         <>
-          Spomenul si si? <Link to="/login">Prihlás sa</Link>
+          {t('Spomenul si si?')} <Link to="/login">{t('Prihlás sa')}</Link>
         </>
       }
     >
       {sent ? (
-        <p>Ak účet s e-mailom {email} existuje, prišiel ti odkaz na nastavenie nového hesla.</p>
+        <p>{t('Ak účet s e-mailom {email} existuje, prišiel ti odkaz na nastavenie nového hesla.', { email })}</p>
       ) : (
         <form onSubmit={submit} className="auth-form">
           <label className="field">
-            <span className="field-label">E-mail</span>
+            <span className="field-label">{t('E-mail')}</span>
             <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
           {error && <p className="form-error">{error}</p>}
           <button className="btn btn-primary btn-block" disabled={busy}>
-            Poslať odkaz
+            {t('Poslať odkaz')}
           </button>
         </form>
       )}
@@ -284,7 +290,7 @@ export function ResetPasswordPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (password.length < 8) return setError('Heslo musí mať aspoň 8 znakov.');
+    if (password.length < 8) return setError(t('Heslo musí mať aspoň 8 znakov.'));
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
@@ -294,15 +300,15 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <AuthShell title="Nové heslo">
+    <AuthShell title={t('Nové heslo')}>
       {!session ? (
         <p>
-          Odkaz je neplatný alebo vypršal. <Link to="/forgot-password">Pošli si nový</Link>.
+          {t('Odkaz je neplatný alebo vypršal.')} <Link to="/forgot-password">{t('Pošli si nový')}</Link>.
         </p>
       ) : (
         <form onSubmit={submit} className="auth-form">
           <label className="field">
-            <span className="field-label">Nové heslo</span>
+            <span className="field-label">{t('Nové heslo')}</span>
             <input
               type="password"
               autoComplete="new-password"
@@ -314,7 +320,7 @@ export function ResetPasswordPage() {
           </label>
           {error && <p className="form-error">{error}</p>}
           <button className="btn btn-primary btn-block" disabled={busy}>
-            Uložiť heslo
+            {t('Uložiť heslo')}
           </button>
         </form>
       )}

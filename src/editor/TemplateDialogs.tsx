@@ -7,6 +7,7 @@ import { EVENT_KINDS, REMIND_OPTIONS } from '../lib/meta';
 import { atMinutes, fmt, timeToMinutes, weekDays } from '../lib/time';
 import type { CalendarEvent, EventTemplate, TemplateKind } from '../lib/types';
 import { CategorySelect, Field, Segmented } from './fields';
+import { t } from '../lib/i18n';
 
 const short = (t?: string) => (t ? t.slice(0, 5) : '');
 const TEMPLATE_KINDS: TemplateKind[] = ['commute', 'event', 'work', 'leisure'];
@@ -28,8 +29,8 @@ export function TemplateDialog({ initial, onClose }: { initial: Partial<EventTem
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
-    if (!title.trim()) return setError('Doplň názov, napr. „Bus do školy“.');
-    if (timeToMinutes(end) <= timeToMinutes(start)) return setError('Príchod musí byť po odchode.');
+    if (!title.trim()) return setError(t('Doplň názov, napr. „Bus do školy“.'));
+    if (timeToMinutes(end) <= timeToMinutes(start)) return setError(t('Príchod musí byť po odchode.'));
     const row = {
       title: title.trim(),
       kind,
@@ -57,61 +58,61 @@ export function TemplateDialog({ initial, onClose }: { initial: Partial<EventTem
 
   return (
     <Modal
-      title={initial.id ? 'Upraviť spoj' : 'Nový spoj na rýchle pridávanie'}
+      title={initial.id ? t('Upraviť spoj') : t('Nový spoj na rýchle pridávanie')}
       onClose={onClose}
       footer={
         <>
           {initial.id && (
             <button type="button" className="btn btn-danger-ghost" onClick={del}>
-              Odstrániť
+              {t('Odstrániť')}
             </button>
           )}
           <span className="spacer" />
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Zrušiť
+            {t('Zrušiť')}
           </button>
           <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>
-            {initial.id ? 'Uložiť zmeny' : 'Uložiť spoj'}
+            {initial.id ? t('Uložiť zmeny') : t('Uložiť spoj')}
           </button>
         </>
       }
     >
       <p className="small muted">
-        Spoj si uložíš raz a potom ho vkladáš len do tých dní, keď ho naozaj potrebuješ.
+        {t('Spoj si uložíš raz a potom ho vkladáš len do tých dní, keď ho naozaj potrebuješ.')}
       </p>
       <Segmented
-        label="Druh"
+        label={t('Druh')}
         value={kind}
         onChange={setKind}
         options={TEMPLATE_KINDS.map((k) => ({ value: k, label: EVENT_KINDS[k].label, color: EVENT_KINDS[k].color }))}
       />
-      <Field label="Názov">
+      <Field label={t('Názov')}>
         <input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={isTrip ? 'Napr. Bus do školy' : 'Napr. Tréning navyše'}
+          placeholder={isTrip ? t('Napr. Bus do školy') : t('Napr. Tréning navyše')}
           maxLength={120}
         />
       </Field>
       <div className="row-2">
-        <Field label={isTrip ? 'Odchod' : 'Od'}>
+        <Field label={isTrip ? t('Odchod') : t('Od')}>
           <input type="time" value={start} onChange={(e) => setStart(e.target.value)} step={60} />
         </Field>
-        <Field label={isTrip ? 'Príchod' : 'Do'}>
+        <Field label={isTrip ? t('Príchod') : t('Do')}>
           <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} step={60} />
         </Field>
       </div>
-      <Field label={isTrip ? 'Spoj a zastávky' : 'Miesto'}>
+      <Field label={isTrip ? t('Spoj a zastávky') : t('Miesto')}>
         <input
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder={isTrip ? 'Napr. Bus 23, Hlavná stanica → Školská' : ''}
+          placeholder={isTrip ? t('Napr. Bus 23, Hlavná stanica → Školská') : ''}
           maxLength={200}
         />
       </Field>
       <div className="row-2">
-        <Field label="Upozornenie">
+        <Field label={t('Upozornenie')}>
           <select
             value={remind === null ? '' : String(remind)}
             onChange={(e) => setRemind(e.target.value === '' ? null : Number(e.target.value))}
@@ -123,17 +124,17 @@ export function TemplateDialog({ initial, onClose }: { initial: Partial<EventTem
             ))}
           </select>
         </Field>
-        <Field label="Kategória">
+        <Field label={t('Kategória')}>
           <CategorySelect value={categoryId} onChange={setCategoryId} />
         </Field>
       </div>
       <details className="more">
-        <summary>Ďalšie možnosti</summary>
-        <Field label="Poznámka">
+        <summary>{t('Ďalšie možnosti')}</summary>
+        <Field label={t('Poznámka')}>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
         </Field>
-        <Field label="Farba">
-          <ColorSwatches label="Farba" value={color} onChange={setColor} allowNone="Podľa druhu alebo kategórie" />
+        <Field label={t('Farba')}>
+          <ColorSwatches label={t('Farba')} value={color} onChange={setColor} allowNone={t('Podľa druhu alebo kategórie')} />
         </Field>
       </details>
       {error && <p className="form-error">{error}</p>}
@@ -203,14 +204,14 @@ export function PlaceTemplateDialog({
       footer={
         <>
           <button type="button" className="link-btn" onClick={onEdit}>
-            Upraviť spoj
+            {t('Upraviť spoj')}
           </button>
           <span className="spacer" />
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Zrušiť
+            {t('Zrušiť')}
           </button>
           <button type="button" className="btn btn-primary" onClick={save} disabled={busy || changes === 0}>
-            Uložiť do týždňa
+            {t('Uložiť do týždňa')}
           </button>
         </>
       }
@@ -220,9 +221,9 @@ export function PlaceTemplateDialog({
         {template.location ? `, ${template.location}` : ''}
       </p>
       <p className="muted small">
-        Týždeň {fmt(days[0], 'd. M.')} – {fmt(days[6], 'd. M.')}. Vyber dni, kedy týmto spojom pôjdeš.
+        {t('Týždeň {from} – {to}. Vyber dni, kedy týmto spojom pôjdeš.', { from: fmt(days[0], 'd. M.'), to: fmt(days[6], 'd. M.') })}
       </p>
-      <div className="place-days" role="group" aria-label="Dni">
+      <div className="place-days" role="group" aria-label={t('Dni')}>
         {days.map((d, i) => (
           <button
             key={i}
@@ -238,17 +239,17 @@ export function PlaceTemplateDialog({
       </div>
       <div className="quick-row">
         <button type="button" className="link-btn" onClick={() => setRange(0, 4)}>
-          Po–Pi
+          {t('Po–Pi')}
         </button>
         <button type="button" className="link-btn" onClick={() => setRange(0, 6)}>
-          Celý týždeň
+          {t('Celý týždeň')}
         </button>
         <button type="button" className="link-btn" onClick={() => setRange(-1, -1)}>
-          Nič
+          {t('Nič')}
         </button>
       </div>
       {existing.some(Boolean) && (
-        <p className="small muted">Zvýraznené dni už tento spoj majú. Zrušením výberu ho z daného dňa odstrániš.</p>
+        <p className="small muted">{t('Zvýraznené dni už tento spoj majú. Zrušením výberu ho z daného dňa odstrániš.')}</p>
       )}
     </Modal>
   );

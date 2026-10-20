@@ -5,12 +5,12 @@ Týždenný rozvrh, úlohy s termínmi a návrhy, kedy čo robiť. Jedna appka p
 ## Čo appka vie
 
 - **Prihlásenie a registrácia** s overením e-mailu, zabudnuté heslo, odhlásenie. Odkaz z e-mailu funguje aj na inom zariadení.
-- **Môj týždeň**: pravidelné bloky (vyučovanie, tréningy, brigáda, voľný čas) s dňami, časom a platnosťou (napr. na polrok).
+- **Rozvrh**: pravidelné bloky (vyučovanie, tréningy, brigáda, voľný čas) s dňami, časom a platnosťou (napr. na polrok).
   - **Rozvrh hodín ako tabuľka**: hodiny × dni, píšeš len predmety. Susedné rovnaké hodiny sa spoja do dvojhodinovky, rovnaký predmet v rovnakom čase v rôzne dni sa uloží ako jeden blok. Enter skočí o hodinu nižšie, predmety sa našepkávajú.
   - **Zvonenie**: časy hodín nastavíš raz v Nastaveniach, potom stačí kliknúť „3.–4. hodina“.
   - **Párne a nepárne týždne**: každý blok môže platiť každý týždeň, len v nepárnom alebo len v párnom. Ktorý týždeň je ktorý, nastavíš jedným klikom v Nastaveniach a ďalej sa striedajú samé.
   - „Uložiť a pridať ďalší“ nechá dni aj párnosť a posunie sa na ďalšiu hodinu.
-- **Spoje (autobusy, vlaky)**: nie sú v pravidelnom týždni. Uložíš si ich raz a v Rozvrhu ich vkladáš len do dní konkrétneho týždňa, keď ich potrebuješ. „Skopírovať cesty z minulého týždňa“ prenesie všetky cesty jedným klikom.
+- **Spoje (autobusy, vlaky)**: nie sú v pravidelnom týždni. Uložíš si ich raz a v Môj týždeň ich vkladáš len do dní konkrétneho týždňa, keď ich potrebuješ. „Skopírovať cesty z minulého týždňa“ prenesie všetky cesty jedným klikom.
 - **Úlohy**: čo treba urobiť, dôležitosť (4 úrovne s vlastnými farbami), odhad času, termín, kategória, priebeh.
 - **Plánovač** (tlačidlo *Navrhnúť plán*): nájde voľný čas medzi rozvrhom a udalosťami a rozloží do neho prácu na úlohách. Návrh je zakreslený „ceruzkou“, každý blok môžeš prijať, posunúť alebo zahodiť. Pravidlá:
   - nikdy neprekrýva rozvrh, udalosti ani prijaté bloky; plánuje len medzi začiatkom a koncom dňa,
@@ -18,10 +18,13 @@ Týždenný rozvrh, úlohy s termínmi a návrhy, kedy čo robiť. Jedna appka p
   - denný limit práce, prestávka po každom bloku, najviac 2 bloky jednej úlohy za deň (ak termín nehorí),
   - každý deň drží voľný čas, ktorý obetuje len vtedy, keď by sa termín inak nestihol,
   - keď sa niečo nezmestí, povie, koľko času chýba.
-- **Voľný čas** (Nastavenia → Voľný čas): nie je blok v kalendári, ale okno, ktoré plánovač nechá prázdne; v rozvrhu je to jemný zelený pás. Zvolíš koľko a kedy: *po vyučovaní* (aj s autobusom domov), *večer*, *pred spaním*, *vlastný čas*, *podľa práce* (bez pevného času, práca nechá medzi sebou medzery spolu aspoň na zvolený čas; ukážu sa ako bodkované „voľno“) alebo *každý deň inak* (aj deň bez voľna). Voľno, ktoré si zapíšeš sám (udalosť alebo blok typu Voľný čas), sa započíta.
-- **Vyhradené voľno**: tlačidlom *Vyhradiť voľno* v Rozvrhu si ho nakreslíš do konkrétneho dňa (myšou ťahaním, na mobile ťuknutím a potom potiahnutím). Je priehľadné so zeleným okrajom, plánovač doň prácu nedá a berie z neho až úplne posledné, keď by sa termín inak nestihol; vtedy na to upozorní a takýto blok má zelený okraj. V nastaveniach voľného času si vyberieš, či sa voľno drží *automaticky* (zelené okná + nakreslené), alebo *sám si ho nakreslím* (zelené okná ostanú len ako tip).
+- **Voľný čas** je len to, čo si nakreslíš: tlačidlom *Vyhradiť voľno* v Môj týždeň si ho nakreslíš do konkrétneho dňa (myšou ťahaním, na mobile ťuknutím a potom potiahnutím). Je priehľadné so zeleným okrajom, plánovač doň prácu nedá a berie z neho až úplne posledné, keď by sa termín inak nestihol; vtedy na to upozorní a takýto blok má zelený okraj.
+- **Voľno medzi prácou** (Nastavenia → Voľný čas): v dňoch s prácou nechá plánovač medzi blokmi medzery spolu aspoň na zvolený čas (ukážu sa ako bodkované „voľno“). Nakreslené voľno a udalosti typu Voľný čas sa doň rátajú.
 - **Teraz a potom**: nad rozvrhom je hneď vidieť, čo práve prebieha (práca, hodina v škole, cesta, akcia, voľno) a čo nasleduje, napr. „O 25 min začínaš Fyzika príklady“, „O 10 min ti začína Matematika“, „O 15 min treba vyraziť na Sťahovanie“.
 - **Oslovovanie**: appka sa pri prvom otvorení opýta, či ťa má oslovovať v mužskom alebo ženskom rode („Splnil som“ / „Splnila som“); zmeníš to v Nastaveniach → Účet.
+- **Jazyky**: slovenčina, čeština a angličtina. Vyberieš pri prihlásení aj v Nastaveniach → Vzhľad, jazyk sa uloží k účtu (aj notifikácie zo servera chodia v ňom). Texty sú v kóde po slovensky v `t('…')`, preklady v `src/locales/cs.ts` a `en.ts`; test `locales.test.ts` stráži, že žiadny text nechýba.
+- **Návod**: po prvom prihlásení krátka interaktívna prehliadka (zvýrazní záložky a tlačidlá, záložky sa klikajú naozaj); znova ju spustíš v Nastaveniach → Appka.
+- **Android appka** (`android/`): táto istá stránka vo vlastnom WebView, bez Chromu, bez približovania, s farbou systémových líšt podľa témy a tlačidlom späť, ktoré zavrie otvorený dialóg. Pripomienky udalostí, spojov, blokov práce a odchodu na akcie si appka naplánuje sama, takže prídu aj pri zatvorenej appke. Stiahnuť ju ide tlačidlom *Stiahnuť APK pre Android* pri prihlásení a v Nastaveniach (posledné vydanie na GitHube).
 - **Ako to išlo?** Keď prijatý blok práce skončí, v rohu (na mobile nad spodnou lištou) sa na akejkoľvek obrazovke ukáže kartička: *Splnil som podľa plánu*, *Splnil, ale treba viac času* (zadaný čas pridá k odhadu úlohy a ceruzkou naplánuje ďalší blok), *Nesplnil som* (ten istý čas naplánuje znova ceruzkou) alebo *Celá úloha je už hotová*. *Neskôr* ju zbalí do malého tlačidla; pýta sa na bloky za posledných 14 dní.
 - **Drag & drop v rozvrhu**: bloky práce (aj návrhy ceruzkou) a udalosti presúvaš myšou na iný čas alebo deň, spodným okrajom meníš dĺžku; na mobile blok podržíš a potiahneš. Časy sa prichytávajú na 15 minút, prekrytie s iným blokom appka ukáže. Esc ťahanie zruší.
 - **Mobil**: kompaktná hlavička, pás dní na prepínanie (aj swipe do strán), pohľady Deň / 3 dni / Týždeň, spoje a termíny v spodnom paneli, dialógy ako spodné panely, kalendár s bodkami a zoznamom vybraného dňa.
@@ -96,30 +99,29 @@ src/
   auth/                 prihlásenie, registrácia, reset hesla
   components/TimeGrid   mriežka rozvrhu (týždeň aj deň)
   editor/               dialógy pre udalosti, úlohy, pravidelné bloky, naplánované bloky
-  pages/                Rozvrh, Kalendár, Úlohy, Môj týždeň, Nastavenia
+  pages/                Môj týždeň (WeekPage), Kalendár, Úlohy, Rozvrh (RoutinePage), Nastavenia
+  locales/              preklady do češtiny a angličtiny
+android/                Android appka (WebView obal stránky)
 supabase/migrations/    databázová schéma
 ```
 
 React + TypeScript + Vite, PWA cez `vite-plugin-pwa`, dátumy `date-fns` (slovenská lokalizácia).
 
-## Mobilná verzia neskôr
+## Android appka
 
-Kód je pripravený na zabalenie cez [Capacitor](https://capacitorjs.com) do natívnej appky pre Android a iOS, bez prepisovania:
+Projekt v `android/` (Java, bez knižníc). Načíta produkčnú adresu, appka je teda len okno na stránku a nové verzie webu sa v nej ukážu samé; APK treba vydať znova len pri zmene v `android/`.
 
 ```bash
-npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios
-npx cap init Rozvrh sk.rozvrh.app --web-dir dist
-npm run build && npx cap add android && npx cap open android
+cd android
+gradle assembleRelease      # app/build/outputs/apk/release/app-release.apk
+gradle assembleDebug        # verzia pre `npm run dev`: adb reverse tcp:3000 tcp:3000
 ```
 
-Potom sa oplatí doplniť:
-- `@capacitor/local-notifications` pre pripomienky aj pri zatvorenej appke,
-- deep link (napr. `sk.rozvrh.app://`) do *Redirect URLs* v Supabase, aby odkaz z e-mailu otvoril appku.
+Treba JDK 17 a Android SDK (`local.properties` so `sdk.dir`). Release sa podpisuje kľúčom z `android/signing/` (`keystore.properties` + `rozvrh-release.jks`), ktorý **nie je v gite**. Odlož si ho bokom: bez rovnakého kľúča sa nová verzia nedá nainštalovať cez starú.
 
-Podobne sa dá pre PC vyrobiť klasický `.exe` cez Tauri alebo Electron, ak by inštalácia z prehliadača nestačila.
+Vydanie: nahraj APK do nového GitHub Release pod menom `Rozvrh.apk`. Tlačidlo v appke ukazuje na `releases/latest/download/Rozvrh.apk`, teda vždy na posledné vydanie.
 
 ## Čo ďalej
 
-- Push notifikácie pri zatvorenej appke (Web Push + Supabase Edge Function).
 - Ťahanie blokov myšou v rozvrhu.
 - AI asistent, ktorý z textu („v piatok mám test z chémie, potrebujem 3 hodiny“) vytvorí úlohu a doplní plán.

@@ -15,6 +15,8 @@ export interface NotifyProfile {
   quiet_enabled: boolean;
   quiet_from: string;
   quiet_to: string;
+  /** 'sk' | 'cs' | 'en', the app's language; Slovak when not chosen */
+  language?: string | null;
 }
 
 export interface DueEvent {
@@ -71,6 +73,86 @@ export interface DueInput {
 }
 
 const MIN = 60_000;
+
+/** the notification texts in the app's three languages; {name} is filled in */
+const TEXTS = {
+  sk: {
+    today: 'Dnes',
+    reminder: 'Pripomienka',
+    leisure: 'Voľný čas',
+    work: 'Blok práce',
+    inMin: 'O {n} min: {what}',
+    now: 'Teraz: {what}',
+    leave: 'Čas vyraziť: {title}',
+    starts: 'začiatok o {time}',
+    days: '{n} dni',
+    day: 'deň',
+    hours: '{n} h',
+    minutes: '{n} min',
+    deadline: 'Termín o {soon}: {title}',
+    due: 'Do {date}. o {time}',
+    late: ' (o {left})',
+    calendar: '{n}× v kalendári',
+    tasks: '{n}× práca na úlohách',
+    gigs: '{n}× freelance',
+    deadlines: '{n}× termín',
+    summary: 'Dnešný deň',
+    empty: 'Nič naplánované. Voľný deň.',
+  },
+  cs: {
+    today: 'Dnes',
+    reminder: 'Připomínka',
+    leisure: 'Volný čas',
+    work: 'Blok práce',
+    inMin: 'Za {n} min: {what}',
+    now: 'Teď: {what}',
+    leave: 'Čas vyrazit: {title}',
+    starts: 'začátek v {time}',
+    days: '{n} dny',
+    day: 'den',
+    hours: '{n} h',
+    minutes: '{n} min',
+    deadline: 'Termín za {soon}: {title}',
+    due: 'Do {date}. v {time}',
+    late: ' (za {left})',
+    calendar: '{n}× v kalendáři',
+    tasks: '{n}× práce na úkolech',
+    gigs: '{n}× freelance',
+    deadlines: '{n}× termín',
+    summary: 'Dnešní den',
+    empty: 'Nic naplánováno. Volný den.',
+  },
+  en: {
+    today: 'Today',
+    reminder: 'Reminder',
+    leisure: 'Free time',
+    work: 'Work block',
+    inMin: 'In {n} min: {what}',
+    now: 'Now: {what}',
+    leave: 'Time to leave: {title}',
+    starts: 'starts at {time}',
+    days: '{n} days',
+    day: 'a day',
+    hours: '{n} h',
+    minutes: '{n} min',
+    deadline: 'Due in {soon}: {title}',
+    due: 'Due {date} at {time}',
+    late: ' (in {left})',
+    calendar: '{n}× in the calendar',
+    tasks: '{n}× work on tasks',
+    gigs: '{n}× freelance',
+    deadlines: '{n}× deadline',
+    summary: 'Today',
+    empty: 'Nothing planned. A free day.',
+  },
+};
+type TextKey = keyof (typeof TEXTS)['sk'];
+
+function texts(language: string | null | undefined) {
+  const dict = language === 'cs' || language === 'en' ? TEXTS[language] : TEXTS.sk;
+  return (key: TextKey, vars: Record<string, string | number> = {}) =>
+    dict[key].replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+}
 /** minimum time a notification stays sendable (cron hiccups, cold starts, lead 0) */
 export const WINDOW_MS = 10 * MIN;
 
@@ -117,16 +199,17 @@ export function inQuietHours(now: Date, p: NotifyProfile) {
 const sendable = (at: number, start: number, now: number) => at <= now && now < Math.max(start, at + WINDOW_MS);
 
 /** "o 12 min" when a reminder goes out later than planned, nothing when on time. */
-function lateness(at: number, start: number, now: number) {
+function lateness(at: number, start: number, now: number, tx: ReturnType<typeof texts>) {
   if (now - at < 2 * MIN || now >= start) return '';
   const left = Math.round((start - now) / MIN);
-  return left < 60 ? ` (o ${left} min)` : ` (o ${Math.floor(left / 60)} h ${left % 60} min)`;
+  return tx('late', { left: left < 60 ? `${left} min` : `${Math.floor(left / 60)} h ${left % 60} min` });
 }
 
 export function dueNotifications(input: DueInput): Note[] {
   const { now, profile: p } = input;
   const t = now.getTime();
   const tz = p.timezone;
+  const tx = texts(p.language);
   const notes: Note[] = [];
   const dayUrl = (iso: string) => `/?d=${localParts(new Date(iso), tz).date}&view=day`;
 
@@ -136,12 +219,12 @@ export function dueNotifications(input: DueInput): Note[] {
       const start = new Date(e.starts_at).getTime();
       const at = start - e.remind_minutes_before * MIN;
       if (!sendable(at, start, t)) continue;
-      const when = e.all_day ? 'Dnes' : hhmm(new Date(e.starts_at), tz) + lateness(at, start, t);
+      const when = e.all_day ? tx('today') : hhmm(new Date(e.starts_at), tz) + lateness(at, start, t, tx);
       notes.push({
         key: `e:${e.id}:${e.starts_at}:${e.remind_minutes_before}`,
         kind: 'event',
         title: e.title,
-        body: [e.kind === 'reminder' ? 'Pripomienka' : when, e.location].filter(Boolean).join(', '),
+        body: [e.kind === 'reminder' ? tx('reminder') : when, e.location].filter(Boolean).join(', '),
         url: dayUrl(e.starts_at),
       });
     }
@@ -154,12 +237,12 @@ export function dueNotifications(input: DueInput): Note[] {
       const start = new Date(s.starts_at).getTime();
       const at = start - p.session_lead_minutes * MIN;
       if (!sendable(at, start, t)) continue;
-      const what = s.kind === 'leisure' ? 'Voľný čas' : (titles.get(s.task_id ?? '') ?? 'Blok práce');
+      const what = s.kind === 'leisure' ? tx('leisure') : (titles.get(s.task_id ?? '') ?? tx('work'));
       const left = Math.round((start - t) / MIN);
       notes.push({
         key: `s:${s.id}:${s.starts_at}:${p.session_lead_minutes}`,
         kind: 'session',
-        title: left > 0 ? `O ${left} min: ${what}` : `Teraz: ${what}`,
+        title: left > 0 ? tx('inMin', { n: left, what }) : tx('now', { what }),
         body: `${hhmm(new Date(s.starts_at), tz)}–${hhmm(new Date(s.ends_at), tz)}`,
         url: dayUrl(s.starts_at),
       });
@@ -173,12 +256,12 @@ export function dueNotifications(input: DueInput): Note[] {
       const startMs = new Date(g.starts_at).getTime();
       const at = startMs - before * MIN;
       if (!sendable(at, startMs, t)) continue;
-      const start = hhmm(new Date(g.starts_at), tz) + lateness(at, startMs, t);
+      const start = hhmm(new Date(g.starts_at), tz) + lateness(at, startMs, t, tx);
       notes.push({
         key: `g:${g.id}:${g.starts_at}:${before}`,
         kind: 'gig',
-        title: before ? `Čas vyraziť: ${g.title}` : g.title,
-        body: [`začiatok o ${start}`, g.location].filter(Boolean).join(', '),
+        title: before ? tx('leave', { title: g.title }) : g.title,
+        body: [tx('starts', { time: start }), g.location].filter(Boolean).join(', '),
         url: '/freelance',
       });
     }
@@ -193,12 +276,20 @@ export function dueNotifications(input: DueInput): Note[] {
       // say how much time is really left (a task added late doesn't have "a day")
       const left = (end - t) / MIN;
       const soon =
-        left >= 36 * 60 ? `${Math.round(left / 1440)} dni` : left >= 18 * 60 ? 'deň' : left >= 60 ? `${Math.round(left / 60)} h` : `${Math.max(1, Math.round(left))} min`;
+        left >= 36 * 60
+          ? tx('days', { n: Math.round(left / 1440) })
+          : left >= 18 * 60
+            ? tx('day')
+            : left >= 60
+              ? tx('hours', { n: Math.round(left / 60) })
+              : tx('minutes', { n: Math.max(1, Math.round(left)) });
+      const [, month, day] = localParts(new Date(x.deadline), tz).date.split('-');
+      const date = p.language === 'en' ? `${Number(day)}/${Number(month)}` : `${day}. ${month}`;
       notes.push({
         key: `t:${x.id}:${x.deadline}:${lead}`,
         kind: 'deadline',
-        title: `Termín o ${soon}: ${x.title}`,
-        body: `Do ${localParts(new Date(x.deadline), tz).date.split('-').reverse().slice(0, 2).join('. ')}. o ${hhmm(new Date(x.deadline), tz)}`,
+        title: tx('deadline', { soon, title: x.title }),
+        body: tx('due', { date, time: hhmm(new Date(x.deadline), tz) }),
         url: '/tasks',
       });
     }
@@ -217,16 +308,16 @@ export function dueNotifications(input: DueInput): Note[] {
         ? input.gigs.filter((g) => g.mode === 'event' && g.starts_at && g.status !== 'cancelled' && today(g.starts_at)).length
         : 0;
       const parts = [
-        events && `${events}× v kalendári`,
-        work && `${work}× práca na úlohách`,
-        gigs && `${gigs}× freelance`,
-        deadlines && `${deadlines}× termín`,
+        events && tx('calendar', { n: events }),
+        work && tx('tasks', { n: work }),
+        gigs && tx('gigs', { n: gigs }),
+        deadlines && tx('deadlines', { n: deadlines }),
       ].filter(Boolean);
       notes.push({
         key: `sum:${local.date}`,
         kind: 'summary',
-        title: 'Dnešný deň',
-        body: parts.length ? parts.join(', ') : 'Nič naplánované. Voľný deň.',
+        title: tx('summary'),
+        body: parts.length ? parts.join(', ') : tx('empty'),
         url: '/',
       });
     }

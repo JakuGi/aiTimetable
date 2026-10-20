@@ -1,26 +1,35 @@
 import type { Gig, GigMode, GigStatus, Session } from './types';
 import { MINUTE } from './time';
+import { getLang, t } from './i18n';
 
 export const FREELANCE_CATEGORY = 'Freelance';
 export const FREELANCE_COLOR = '#2F9E44';
 
 export const GIG_MODES: Record<GigMode, { label: string; hint: string }> = {
-  event: { label: 'Akcia', hint: 'Na mieste v daný čas: nakladanie, sťahovanie, práca na akcii.' },
-  project: { label: 'Projekt', hint: 'Práca na úlohe do termínu: programovanie, grafika, texty.' },
+  event: {
+    get label() { return t('Akcia'); },
+    get hint() { return t('Na mieste v daný čas: nakladanie, sťahovanie, práca na akcii.'); },
+  },
+  project: {
+    get label() { return t('Projekt'); },
+    get hint() { return t('Práca na úlohe do termínu: programovanie, grafika, texty.'); },
+  },
 };
 
 export const GIG_STATUS: Record<GigStatus, string> = {
-  planned: 'Dohodnuté',
-  confirmed: 'Potvrdené',
-  done: 'Hotové, čaká na platbu',
-  paid: 'Zaplatené',
-  cancelled: 'Zrušené',
+  get planned() { return t('Dohodnuté'); },
+  get confirmed() { return t('Potvrdené'); },
+  get done() { return t('Hotové, čaká na platbu'); },
+  get paid() { return t('Zaplatené'); },
+  get cancelled() { return t('Zrušené'); },
 };
 
-export const EXPENSE_PRESETS = ['Doprava', 'Parkovanie', 'Jedlo', 'Materiál', 'Náradie', 'Ubytovanie'];
+const EXPENSES = ['Doprava', 'Parkovanie', 'Jedlo', 'Materiál', 'Náradie', 'Ubytovanie'];
+export const expensePresets = () => EXPENSES.map((e) => t(e));
 
-const money = new Intl.NumberFormat('sk-SK', { style: 'currency', currency: 'EUR' });
-export const fmtMoney = (n: number) => money.format(Number.isFinite(n) ? n : 0);
+const MONEY_LOCALE = { sk: 'sk-SK', cs: 'cs-CZ', en: 'en-IE' } as const;
+export const fmtMoney = (n: number) =>
+  new Intl.NumberFormat(MONEY_LOCALE[getLang()], { style: 'currency', currency: 'EUR' }).format(Number.isFinite(n) ? n : 0);
 
 export const num = (v: number | string | null | undefined) => {
   const n = typeof v === 'string' ? parseFloat(v) : (v ?? 0);

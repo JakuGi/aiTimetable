@@ -23,19 +23,21 @@ import {
 import { placedOn } from '../editor/TemplateDialogs';
 import { useToast } from '../components/Toast';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { plural, t } from '../lib/i18n';
+import { useGender } from '../lib/gender';
 
 type View = 'day' | '3day' | 'week';
 const VIEWS: { value: View; label: string }[] = [
-  { value: 'day', label: 'Deň' },
-  { value: '3day', label: '3 dni' },
-  { value: 'week', label: 'Týždeň' },
+  { value: 'day', get label() { return t('Deň'); } },
+  { value: '3day', get label() { return t('3 dni'); } },
+  { value: 'week', get label() { return t('Týždeň'); } },
 ];
-const plural = (n: number, one: string, few: string, many: string) => (n === 1 ? one : n > 1 && n < 5 ? few : many);
 
 export function WeekPage() {
   const data = useData();
   const editor = useEditor();
   const notify = useToast();
+  const g = useGender();
   const narrow = useMediaQuery('(max-width: 760px)');
   const [params, setParams] = useSearchParams();
   const anchor = params.get('d') ? new Date(`${params.get('d')}T00:00`) : startOfDay(new Date());
@@ -62,11 +64,11 @@ export function WeekPage() {
   const step = view === 'day' ? 1 : view === '3day' ? 3 : 7;
 
   const suggested = data.sessions.filter((s) => s.status === 'suggested');
-  const openTasks = data.tasks.filter((t) => t.status === 'todo');
+  const openTasks = data.tasks.filter((task) => task.status === 'todo');
 
   // keep warnings honest when tasks change elsewhere
   useEffect(() => {
-    setWarnings((w) => w.filter((x) => openTasks.some((t) => t.id === x.taskId)));
+    setWarnings((w) => w.filter((x) => openTasks.some((task) => task.id === x.taskId)));
   }, [data.tasks]);
 
   const runPlanner = async () => {
@@ -89,14 +91,29 @@ export function WeekPage() {
     setIntrusions(result.intrusions);
     if (result.intrusions.length) {
       const taken = result.intrusions.reduce((m, s) => m + (s.end.getTime() - s.start.getTime()) / 60_000, 0);
-      notify(`Pozor: kvôli termínu som musel zobrať ${fmtDuration(taken)} z tvojho vyhradeného voľna.`, 'error');
+      notify(
+        g(
+          'Pozor: kvôli termínu som musel zobrať {time} z tvojho vyhradeného voľna.',
+          'Pozor: kvôli termínu som musela zobrať {time} z tvojho vyhradeného voľna.',
+          { time: fmtDuration(taken) },
+        ),
+        'error',
+      );
     }
     const work = result.suggestions.length;
     if (!result.suggestions.length) {
-      notify(openTasks.length ? 'Nenašiel som voľný čas na nové bloky.' : 'Nemáš otvorené úlohy, máš voľno.', 'info');
+      notify(
+        openTasks.length
+          ? g('Nenašiel som voľný čas na nové bloky.', 'Nenašla som voľný čas na nové bloky.')
+          : t('Nemáš otvorené úlohy, máš voľno.'),
+        'info',
+      );
     } else {
       notify(
-        `Návrh: ${work} ${plural(work, 'blok', 'bloky', 'blokov')} práce${result.intrusions.length ? '.' : ', vyhradené voľno ostalo voľné.'}`,
+        t(result.intrusions.length ? 'Návrh: {n} {blocks} práce.' : 'Návrh: {n} {blocks} práce, vyhradené voľno ostalo voľné.', {
+          n: work,
+          blocks: plural(work, 'blok', 'bloky', 'blokov'),
+        }),
         'success',
       );
     }
@@ -116,8 +133,8 @@ export function WeekPage() {
     const taken = new Set(data.events.map((e) => `${e.title}|${new Date(e.starts_at).getTime()}`));
     const rows = data.events
       .filter((e) => {
-        const t = new Date(e.starts_at).getTime();
-        return e.kind === 'commute' && !e.all_day && t >= prevStart && t < thisStart;
+        const at = new Date(e.starts_at).getTime();
+        return e.kind === 'commute' && !e.all_day && at >= prevStart && at < thisStart;
       })
       .map((e) => {
         const starts = addDays(new Date(e.starts_at), 7);
@@ -137,8 +154,8 @@ export function WeekPage() {
         };
       })
       .filter((r) => !taken.has(`${r.title}|${new Date(r.starts_at).getTime()}`));
-    if (!rows.length) return notify('Minulý týždeň nemá cesty, ktoré by tu ešte chýbali.', 'info');
-    if (await data.insertMany('events', rows)) notify(`Skopírované cesty: ${rows.length}.`, 'success');
+    if (!rows.length) return notify(t('Minulý týždeň nemá cesty, ktoré by tu ešte chýbali.'), 'info');
+    if (await data.insertMany('events', rows)) notify(t('Skopírované cesty: {n}.', { n: rows.length }), 'success');
   };
 
   const dayStartHour = data.profile ? Math.floor(timeToMinutes(data.profile.day_start) / 60) : 7;
@@ -151,7 +168,7 @@ export function WeekPage() {
       ? fmt(anchor, narrow ? 'EEEE d. M.' : 'EEEE d. MMMM')
       : `${fmt(days[0], 'd. M.')} – ${fmt(days[days.length - 1], narrow ? 'd. M.' : 'd. M. yyyy')}`;
 
-  const deadlines = openTasks.filter((t) => t.deadline).length;
+  const deadlines = openTasks.filter((task) => task.deadline).length;
   const sideProps = { shownWeek, warnings, intrusions, copyTrips };
 
   /** Free time drawn into the timetable; pencil work already there is noted. */
@@ -161,8 +178,11 @@ export function WeekPage() {
     const clash = suggested.filter(
       (s) => new Date(s.starts_at).getTime() < end.getTime() && new Date(s.ends_at).getTime() > start.getTime(),
     ).length;
+    const range = `${fmtTime(start)}–${fmtTime(end)}`;
     notify(
-      `Vyhradené voľno ${fmtTime(start)}–${fmtTime(end)}.${clash ? ' Prekrýva návrh ceruzkou, daj Navrhnúť plán znova.' : ''}`,
+      clash
+        ? t('Vyhradené voľno {range}. Prekrýva návrh ceruzkou, daj Navrhnúť plán znova.', { range })
+        : t('Vyhradené voľno {range}.', { range }),
       'success',
     );
   };
@@ -173,22 +193,22 @@ export function WeekPage() {
         <div className="wk-row">
           {!narrow && (
             <div className="wk-nav">
-              <button className="icon-btn" onClick={() => go(addDays(anchor, -step))} aria-label="Predchádzajúce">
+              <button className="icon-btn" onClick={() => go(addDays(anchor, -step))} aria-label={t('Predchádzajúce')}>
                 <Chevron dir="left" />
               </button>
               <button className="btn btn-ghost" onClick={() => go(startOfDay(new Date()))} disabled={isCurrent}>
-                Dnes
+                {t('Dnes')}
               </button>
-              <button className="icon-btn" onClick={() => go(addDays(anchor, step))} aria-label="Ďalšie">
+              <button className="icon-btn" onClick={() => go(addDays(anchor, step))} aria-label={t('Ďalšie')}>
                 <Chevron dir="right" />
               </button>
             </div>
           )}
           <h1 className="wk-title">{title}</h1>
-          {parity && <span className={`parity-tag parity-${parity}`}>{parity === 'odd' ? 'nepárny' : 'párny'}</span>}
+          {parity && <span className={`parity-tag parity-${parity}`}>{parity === 'odd' ? t('nepárny') : t('párny')}</span>}
           <div className="wk-actions">
             {!narrow && (
-              <div className="segmented small" role="radiogroup" aria-label="Zobrazenie">
+              <div className="segmented small" role="radiogroup" aria-label={t('Zobrazenie')}>
                 {VIEWS.map((v) => (
                   <button key={v.value} role="radio" aria-checked={view === v.value} onClick={() => go(anchor, v.value)}>
                     {v.label}
@@ -198,25 +218,32 @@ export function WeekPage() {
             )}
             <button
               className={`btn btn-ghost btn-icon-label draw-toggle${drawFree ? ' is-on' : ''}`}
+              data-tour="free"
               onClick={() => setDrawFree((d) => !d)}
               aria-pressed={drawFree}
-              aria-label="Vyhradiť voľno"
+              aria-label={t('Vyhradiť voľno')}
             >
               <FreeIcon />
-              <span>{drawFree ? 'Hotovo' : 'Vyhradiť voľno'}</span>
+              <span>{drawFree ? t('Hotovo') : t('Vyhradiť voľno')}</span>
             </button>
             <button
               className="btn btn-ghost btn-icon-label"
+              data-tour="add"
               onClick={() => editor.editTask({})}
-              aria-label="Pridať úlohu, udalosť alebo pripomienku"
-              title="Pridať úlohu, udalosť alebo pripomienku"
+              aria-label={t('Pridať úlohu, udalosť alebo pripomienku')}
+              title={t('Pridať úlohu, udalosť alebo pripomienku')}
             >
               <PlusIcon />
-              <span>Pridať</span>
+              <span>{t('Pridať')}</span>
             </button>
-            <button className="btn btn-primary btn-icon-label" onClick={runPlanner} disabled={planning || !data.profile}>
+            <button
+              className="btn btn-primary btn-icon-label"
+              data-tour="plan"
+              onClick={runPlanner}
+              disabled={planning || !data.profile}
+            >
               <PencilIcon />
-              <span>{planning ? 'Plánujem…' : narrow ? 'Návrh' : 'Navrhnúť plán'}</span>
+              <span>{planning ? t('Plánujem…') : narrow ? t('Návrh') : t('Navrhnúť plán')}</span>
             </button>
           </div>
         </div>
@@ -229,7 +256,7 @@ export function WeekPage() {
               onWeek={(dir) => go(addDays(anchor, dir * 7))}
             />
             <div className="wk-row wk-row-sub">
-              <div className="segmented small" role="radiogroup" aria-label="Zobrazenie">
+              <div className="segmented small" role="radiogroup" aria-label={t('Zobrazenie')}>
                 {VIEWS.map((v) => (
                   <button key={v.value} role="radio" aria-checked={view === v.value} onClick={() => go(anchor, v.value)}>
                     {v.label}
@@ -237,8 +264,8 @@ export function WeekPage() {
                 ))}
               </div>
               <button className="btn btn-ghost btn-small sheet-btn" onClick={() => setSheet(true)}>
-                <span className="label-long">Spoje a termíny</span>
-                <span className="label-short">Spoje</span>
+                <span className="label-long">{t('Spoje a termíny')}</span>
+                <span className="label-short">{t('Spoje')}</span>
                 {warnings.length > 0 ? <span className="badge badge-warn">{warnings.length}</span> : deadlines > 0 ? <span className="badge">{deadlines}</span> : null}
               </button>
             </div>
@@ -252,42 +279,42 @@ export function WeekPage() {
         <div className="draw-bar" role="status">
           <span className="free-swatch" aria-hidden="true" />
           <p>
-            <b>Kreslíš vyhradené voľno.</b>{' '}
+            <b>{t('Kreslíš vyhradené voľno.')}</b>{' '}
             {narrow
-              ? 'Ťukni na čas, kde ho chceš (1 h), potom ho potiahni alebo mu zmeň dĺžku spodným okrajom.'
-              : 'Ťahaj myšou v dni od začiatku po koniec voľna. Klik pridá 1 h.'}{' '}
-            Plánovač sem prácu nedá.
+              ? t('Ťukni na čas, kde ho chceš (1 h), potom ho potiahni alebo mu zmeň dĺžku spodným okrajom.')
+              : t('Ťahaj myšou v dni od začiatku po koniec voľna. Klik pridá 1 h.')}{' '}
+            {t('Plánovač sem prácu nedá.')}
           </p>
           <button className="btn btn-primary btn-small" onClick={() => setDrawFree(false)}>
-            Hotovo
+            {t('Hotovo')}
           </button>
         </div>
       )}
 
       {suggested.length > 0 && (
-        <div className="suggest-bar" role="region" aria-label="Návrh plánu">
+        <div className="suggest-bar" role="region" aria-label={t('Návrh plánu')}>
           <span className="pencil-swatch" aria-hidden="true" />
           <p>
             <b>
-              {suggested.length} {plural(suggested.length, 'blok', 'bloky', 'blokov')} ceruzkou.
+              {t('{n} {blocks} ceruzkou.', { n: suggested.length, blocks: plural(suggested.length, 'blok', 'bloky', 'blokov') })}
             </b>{' '}
             {narrow
-              ? 'Podrž blok a potiahni ho inam.'
-              : 'Ťahaj ich myšou na iný čas alebo deň, spodný okraj mení dĺžku. Klik otvorí detail.'}
+              ? t('Podrž blok a potiahni ho inam.')
+              : t('Ťahaj ich myšou na iný čas alebo deň, spodný okraj mení dĺžku. Klik otvorí detail.')}
           </p>
           <div className="suggest-actions">
             <button className="btn btn-ghost btn-small" onClick={discardAll}>
-              Zahodiť
+              {t('Zahodiť')}
             </button>
             <button className="btn btn-primary btn-small" onClick={acceptAll}>
-              Prijať všetko
+              {t('Prijať všetko')}
             </button>
           </div>
         </div>
       )}
 
       <div className="week-layout">
-        <section className="week-grid" aria-label="Rozvrh">
+        <section className="week-grid" aria-label={t('Môj týždeň')}>
           <TimeGrid
             days={days}
             items={items}
@@ -301,14 +328,14 @@ export function WeekPage() {
         </section>
 
         {!narrow && (
-          <aside className="side-panel" aria-label="Spoje, termíny a úlohy">
+          <aside className="side-panel" aria-label={t('Spoje, termíny a úlohy')}>
             <WeekSide {...sideProps} />
           </aside>
         )}
       </div>
 
       {narrow && sheet && (
-        <Modal title="Spoje a termíny" onClose={() => setSheet(false)}>
+        <Modal title={t('Spoje a termíny')} onClose={() => setSheet(false)}>
           <div className="side-panel in-sheet">
             <WeekSide {...sideProps} />
           </div>
@@ -322,8 +349,8 @@ export function WeekPage() {
 function DayStrip({ anchor, onPick, onWeek }: { anchor: Date; onPick: (d: Date) => void; onWeek: (dir: 1 | -1) => void }) {
   const days = weekDays(weekStart(anchor));
   return (
-    <div className="day-strip" role="group" aria-label="Dni týždňa">
-      <button className="strip-arrow" onClick={() => onWeek(-1)} aria-label="Predchádzajúci týždeň">
+    <div className="day-strip" role="group" aria-label={t('Dni týždňa')}>
+      <button className="strip-arrow" onClick={() => onWeek(-1)} aria-label={t('Predchádzajúci týždeň')}>
         <Chevron dir="left" />
       </button>
       {days.map((d) => (
@@ -337,7 +364,7 @@ function DayStrip({ anchor, onPick, onWeek }: { anchor: Date; onPick: (d: Date) 
           <b>{fmt(d, 'd')}</b>
         </button>
       ))}
-      <button className="strip-arrow" onClick={() => onWeek(1)} aria-label="Ďalší týždeň">
+      <button className="strip-arrow" onClick={() => onWeek(1)} aria-label={t('Ďalší týždeň')}>
         <Chevron dir="right" />
       </button>
     </div>
@@ -357,82 +384,84 @@ function WeekSide({
 }) {
   const data = useData();
   const editor = useEditor();
-  const openTasks = data.tasks.filter((t) => t.status === 'todo');
+  const g = useGender();
+  const openTasks = data.tasks.filter((task) => task.status === 'todo');
   const upcoming = openTasks
-    .filter((t) => t.deadline)
+    .filter((task) => task.deadline)
     .sort((a, b) => a.deadline!.localeCompare(b.deadline!))
     .slice(0, 8);
-  const noDeadline = openTasks.filter((t) => !t.deadline);
+  const noDeadline = openTasks.filter((task) => !task.deadline);
 
   return (
     <>
       {intrusions.length > 0 && (
         <section className="warn-box">
-          <h2>Siahol som do vyhradeného voľna</h2>
+          <h2>{g('Siahol som do vyhradeného voľna', 'Siahla som do vyhradeného voľna')}</h2>
           <ul>
             {intrusions.map((s) => (
               <li key={s.start.toISOString()}>
-                <b>{data.taskById(s.taskId)?.title ?? 'Úloha'}</b>
+                <b>{data.taskById(s.taskId)?.title ?? t('Úloha')}</b>
                 <span>
                   {fmt(s.start, 'EEEE d. M.')}, {fmtTime(s.start)}–{fmtTime(s.end)}
                 </span>
               </li>
             ))}
           </ul>
-          <p className="small muted">Bez toho by sa termín nestihol. Ak to nechceš, posuň termín alebo uvoľni iný čas.</p>
+          <p className="small muted">{t('Bez toho by sa termín nestihol. Ak to nechceš, posuň termín alebo uvoľni iný čas.')}</p>
         </section>
       )}
 
       {warnings.length > 0 && (
         <section className="warn-box">
-          <h2>Toto sa nezmestí</h2>
+          <h2>{t('Toto sa nezmestí')}</h2>
           <ul>
             {warnings.map((w) => {
-              const t = data.taskById(w.taskId);
-              if (!t) return null;
+              const task = data.taskById(w.taskId);
+              if (!task) return null;
+              const time = fmtDuration(w.missingMinutes);
               return (
                 <li key={w.taskId}>
-                  <button className="link-btn" onClick={() => editor.editTask(t)}>
-                    {t.title}
+                  <button className="link-btn" onClick={() => editor.editTask(task)}>
+                    {task.title}
                   </button>
                   <span>
                     {w.reason === 'overdue'
-                      ? `Termín už uplynul, ostáva ${fmtDuration(w.missingMinutes)}.`
+                      ? t('Termín už uplynul, ostáva {time}.', { time })
                       : w.reason === 'deadline'
-                        ? `Do termínu chýba ${fmtDuration(w.missingMinutes)} voľného času.`
-                        : `V najbližších ${data.profile?.planning_horizon_days} dňoch chýba ${fmtDuration(w.missingMinutes)}.`}
+                        ? t('Do termínu chýba {time} voľného času.', { time })
+                        : t('V najbližších {n} dňoch chýba {time}.', { n: data.profile?.planning_horizon_days ?? 0, time })}
                   </span>
                 </li>
               );
             })}
           </ul>
-          <p className="small muted">Skús posunúť termín, znížiť odhad alebo uvoľniť čas v rozvrhu.</p>
+          <p className="small muted">{t('Skús posunúť termín, znížiť odhad alebo uvoľniť čas v rozvrhu.')}</p>
         </section>
       )}
 
       <section>
-        <h2>Spoje v tomto týždni</h2>
+        <h2>{t('Spoje v tomto týždni')}</h2>
         {data.event_templates.length === 0 ? (
           <p className="empty">
-            Ulož si autobusy a vlaky, ktorými chodíš, a vkladaj ich len do dní, keď nimi naozaj ideš.{' '}
+            {t('Ulož si autobusy a vlaky, ktorými chodíš, a vkladaj ich len do dní, keď nimi naozaj ideš.')}{' '}
             <button className="link-btn" onClick={() => editor.editTemplate({})}>
-              Pridať prvý spoj
+              {t('Pridať prvý spoj')}
             </button>
           </p>
         ) : (
           <ul className="templates">
-            {data.event_templates.map((t) => {
-              const count = weekDays(shownWeek).filter((d) => placedOn(t, d, data.events)).length;
+            {data.event_templates.map((tpl) => {
+              const count = weekDays(shownWeek).filter((d) => placedOn(tpl, d, data.events)).length;
               return (
-                <li key={t.id}>
+                <li key={tpl.id}>
                   <button
                     className="template-btn"
-                    style={{ '--c': t.color ?? data.categoryById(t.category_id)?.color ?? '#7C879C' } as CSSProperties}
-                    onClick={() => editor.placeTemplate(t, shownWeek)}
+                    style={{ '--c': tpl.color ?? data.categoryById(tpl.category_id)?.color ?? '#7C879C' } as CSSProperties}
+                    onClick={() => editor.placeTemplate(tpl, shownWeek)}
                   >
-                    <span className="template-time">{t.start_time.slice(0, 5)}</span>
-                    <span className="template-title">{t.title}</span>
-                    <span className="template-count">{count ? `${count}× tento týždeň` : 'pridať do dní'}</span>
+                    <span className="template-time">{tpl.start_time.slice(0, 5)}</span>
+                    <span className="template-title">{tpl.title}</span>
+                    <span className="template-count">{count ? t('{n}× tento týždeň', { n: count }) : t('pridať do dní')}</span>
                   </button>
                 </li>
               );
@@ -442,39 +471,39 @@ function WeekSide({
         <div className="quick-row">
           {data.event_templates.length > 0 && (
             <button className="link-btn" onClick={() => editor.editTemplate({})}>
-              Nový spoj
+              {t('Nový spoj')}
             </button>
           )}
           <button className="link-btn" onClick={copyTrips}>
-            Skopírovať cesty z minulého týždňa
+            {t('Skopírovať cesty z minulého týždňa')}
           </button>
         </div>
       </section>
 
       <section>
-        <h2>Najbližšie termíny</h2>
+        <h2>{t('Najbližšie termíny')}</h2>
         {upcoming.length === 0 && (
           <p className="empty">
-            Žiadne termíny.{' '}
+            {t('Žiadne termíny.')}{' '}
             <button className="link-btn" onClick={() => editor.editTask({})}>
-              Pridaj úlohu
+              {t('Pridaj úlohu')}
             </button>{' '}
-            a plánovač jej nájde čas.
+            {t('a plánovač jej nájde čas.')}
           </p>
         )}
         <ul className="task-mini">
-          {upcoming.map((t) => (
-            <TaskMini key={t.id} taskId={t.id} />
+          {upcoming.map((task) => (
+            <TaskMini key={task.id} taskId={task.id} />
           ))}
         </ul>
       </section>
 
       {noDeadline.length > 0 && (
         <section>
-          <h2>Bez termínu</h2>
+          <h2>{t('Bez termínu')}</h2>
           <ul className="task-mini">
-            {noDeadline.slice(0, 6).map((t) => (
-              <TaskMini key={t.id} taskId={t.id} />
+            {noDeadline.slice(0, 6).map((task) => (
+              <TaskMini key={task.id} taskId={task.id} />
             ))}
           </ul>
         </section>
@@ -486,20 +515,20 @@ function WeekSide({
 function TaskMini({ taskId }: { taskId: string }) {
   const { taskById, sessions, profile, categoryById } = useData();
   const editor = useEditor();
-  const t = taskById(taskId);
-  if (!t) return null;
-  const covered = coveredMinutes(t.id, sessions);
-  const pct = Math.min(100, Math.round((covered / t.estimated_minutes) * 100));
-  const color = priorityColor(profile?.priority_colors, t.priority);
+  const task = taskById(taskId);
+  if (!task) return null;
+  const covered = coveredMinutes(task.id, sessions);
+  const pct = Math.min(100, Math.round((covered / task.estimated_minutes) * 100));
+  const color = priorityColor(profile?.priority_colors, task.priority);
   return (
     <li>
-      <button className="task-mini-btn" onClick={() => editor.editTask(t)} style={{ '--c': color } as CSSProperties}>
-        <span className="task-mini-title">{t.title}</span>
+      <button className="task-mini-btn" onClick={() => editor.editTask(task)} style={{ '--c': color } as CSSProperties}>
+        <span className="task-mini-title">{task.title}</span>
         <span className="task-mini-meta">
-          {t.deadline ? relativeDeadline(t.deadline) : PRIORITY_LABELS[t.priority]}
-          {categoryById(t.category_id) ? `, ${categoryById(t.category_id)!.name}` : ''}
+          {task.deadline ? relativeDeadline(task.deadline) : PRIORITY_LABELS[task.priority]}
+          {categoryById(task.category_id) ? `, ${categoryById(task.category_id)!.name}` : ''}
         </span>
-        <span className="meter" aria-label={`Naplánované ${pct} %`}>
+        <span className="meter" aria-label={t('Naplánované {pct} %', { pct })}>
           <span style={{ width: `${pct}%` }} />
         </span>
       </button>

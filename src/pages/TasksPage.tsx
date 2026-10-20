@@ -6,6 +6,7 @@ import { coveredMinutes, doneMinutes } from '../lib/planner';
 import { fmt, fmtDuration, relativeDeadline } from '../lib/time';
 import type { Task } from '../lib/types';
 import { useToast } from '../components/Toast';
+import { t } from '../lib/i18n';
 
 type Filter = 'todo' | 'done';
 type Sort = 'deadline' | 'priority';
@@ -18,53 +19,53 @@ export function TasksPage() {
   const [sort, setSort] = useState<Sort>('deadline');
 
   const list = tasks
-    .filter((t) => t.status === filter)
+    .filter((task) => task.status === filter)
     .sort((a, b) => {
       if (filter === 'done') return (b.completed_at ?? '').localeCompare(a.completed_at ?? '');
       if (sort === 'priority') return b.priority - a.priority || cmpDeadline(a, b);
       return cmpDeadline(a, b) || b.priority - a.priority;
     });
 
-  const toggle = async (t: Task) => {
-    const done = t.status !== 'done';
-    await update('tasks', t.id, {
+  const toggle = async (task: Task) => {
+    const done = task.status !== 'done';
+    await update('tasks', task.id, {
       status: done ? 'done' : 'todo',
       completed_at: done ? new Date().toISOString() : null,
     });
     if (done) {
-      await settleFinishedTask(t.id);
-      notify(`Hotovo: ${t.title}`, 'success');
+      await settleFinishedTask(task.id);
+      notify(t('Hotovo: {title}', { title: task.title }), 'success');
     }
   };
 
-  const openCount = tasks.filter((t) => t.status === 'todo').length;
+  const openCount = tasks.filter((task) => task.status === 'todo').length;
 
   return (
     <div className="page page-tasks">
       <header className="toolbar">
         <div className="toolbar-nav">
-          <h1 className="toolbar-title">Úlohy</h1>
-          <div className="segmented small" role="radiogroup" aria-label="Filter">
+          <h1 className="toolbar-title">{t('Úlohy')}</h1>
+          <div className="segmented small" role="radiogroup" aria-label={t('Filter')}>
             <button role="radio" aria-checked={filter === 'todo'} onClick={() => setFilter('todo')}>
-              Otvorené ({openCount})
+              {t('Otvorené ({n})', { n: openCount })}
             </button>
             <button role="radio" aria-checked={filter === 'done'} onClick={() => setFilter('done')}>
-              Hotové
+              {t('Hotové')}
             </button>
           </div>
         </div>
         <div className="toolbar-actions">
           {filter === 'todo' && (
             <label className="inline-select">
-              Zoradiť podľa
+              {t('Zoradiť podľa')}
               <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-                <option value="deadline">termínu</option>
-                <option value="priority">dôležitosti</option>
+                <option value="deadline">{t('termínu')}</option>
+                <option value="priority">{t('dôležitosti')}</option>
               </select>
             </label>
           )}
           <button className="btn btn-primary" onClick={() => editor.editTask({})}>
-            Nová úloha
+            {t('Nová úloha')}
           </button>
         </div>
       </header>
@@ -73,57 +74,60 @@ export function TasksPage() {
         <div className="empty-state">
           {filter === 'todo' ? (
             <>
-              <h2>Nič otvorené</h2>
-              <p>Zapíš si, čo potrebuješ stihnúť, odhadni čas a daj termín. Plánovač ti to rozloží do voľných chvíľ.</p>
+              <h2>{t('Nič otvorené')}</h2>
+              <p>{t('Zapíš si, čo potrebuješ stihnúť, odhadni čas a daj termín. Plánovač ti to rozloží do voľných chvíľ.')}</p>
               <button className="btn btn-primary" onClick={() => editor.editTask({})}>
-                Pridať prvú úlohu
+                {t('Pridať prvú úlohu')}
               </button>
             </>
           ) : (
-            <p>Zatiaľ nič hotové.</p>
+            <p>{t('Zatiaľ nič hotové.')}</p>
           )}
         </div>
       ) : (
         <ul className="task-list">
-          {list.map((t) => {
-            const color = priorityColor(profile?.priority_colors, t.priority);
-            const done = doneMinutes(t.id, sessions);
-            const covered = coveredMinutes(t.id, sessions);
-            const cat = categoryById(t.category_id);
-            const overdue = t.status === 'todo' && t.deadline && new Date(t.deadline) < new Date();
+          {list.map((task) => {
+            const color = priorityColor(profile?.priority_colors, task.priority);
+            const done = doneMinutes(task.id, sessions);
+            const covered = coveredMinutes(task.id, sessions);
+            const cat = categoryById(task.category_id);
+            const overdue = task.status === 'todo' && task.deadline && new Date(task.deadline) < new Date();
             return (
-              <li key={t.id} className="task-row" style={{ '--c': color } as CSSProperties}>
+              <li key={task.id} className="task-row" style={{ '--c': color } as CSSProperties}>
                 <input
                   type="checkbox"
                   className="task-check"
-                  checked={t.status === 'done'}
-                  onChange={() => toggle(t)}
-                  aria-label={t.status === 'done' ? `Vrátiť ${t.title}` : `Hotovo: ${t.title}`}
+                  checked={task.status === 'done'}
+                  onChange={() => toggle(task)}
+                  aria-label={task.status === 'done' ? t('Vrátiť {title}', { title: task.title }) : t('Hotovo: {title}', { title: task.title })}
                 />
-                <button className="task-main" onClick={() => editor.editTask(t)}>
-                  <span className="task-title">{t.title}</span>
+                <button className="task-main" onClick={() => editor.editTask(task)}>
+                  <span className="task-title">{task.title}</span>
                   <span className="task-meta">
-                    <span className="prio">{PRIORITY_LABELS[t.priority]}</span>
+                    <span className="prio">{PRIORITY_LABELS[task.priority]}</span>
                     {cat && (
                       <span className="cat" style={{ '--cat': cat.color } as CSSProperties}>
                         {cat.name}
                       </span>
                     )}
-                    {t.deadline && (
+                    {task.deadline && (
                       <span className={overdue ? 'deadline is-overdue' : 'deadline'}>
-                        {t.status === 'done' ? `termín ${fmt(t.deadline, 'd. M.')}` : relativeDeadline(t.deadline)}
+                        {task.status === 'done' ? t('termín {date}', { date: fmt(task.deadline, 'd. M.') }) : relativeDeadline(task.deadline)}
                       </span>
                     )}
-                    {t.status === 'done' && t.completed_at && <span>hotové {fmt(t.completed_at, 'd. M.')}</span>}
+                    {task.status === 'done' && task.completed_at && <span>{t('hotové {date}', { date: fmt(task.completed_at, 'd. M.') })}</span>}
                   </span>
                 </button>
-                <div className="task-progress" title={`Odpracované ${fmtDuration(done)}, naplánované ${fmtDuration(covered)}`}>
+                <div
+                  className="task-progress"
+                  title={t('Odpracované {done}, naplánované {covered}', { done: fmtDuration(done), covered: fmtDuration(covered) })}
+                >
                   <span className="meter double">
-                    <span className="planned" style={{ width: `${Math.min(100, (covered / t.estimated_minutes) * 100)}%` }} />
-                    <span className="done" style={{ width: `${Math.min(100, (done / t.estimated_minutes) * 100)}%` }} />
+                    <span className="planned" style={{ width: `${Math.min(100, (covered / task.estimated_minutes) * 100)}%` }} />
+                    <span className="done" style={{ width: `${Math.min(100, (done / task.estimated_minutes) * 100)}%` }} />
                   </span>
                   <span className="small muted">
-                    {fmtDuration(done)} / {fmtDuration(t.estimated_minutes)}
+                    {fmtDuration(done)} / {fmtDuration(task.estimated_minutes)}
                   </span>
                 </div>
               </li>

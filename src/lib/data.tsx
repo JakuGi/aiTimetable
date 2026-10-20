@@ -15,6 +15,7 @@ import type {
   Task,
 } from './types';
 import type { Suggestion } from './planner';
+import { reconcileLang, t } from './i18n';
 
 interface Tables {
   profiles: Profile[];
@@ -88,7 +89,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { column, ascending } = ORDER[table];
     const { data: rows, error } = await supabase.from(table).select('*').order(column, { ascending });
     if (error) {
-      notify(`Nepodarilo sa načítať dáta (${table}): ${error.message}`, 'error');
+      notify(t('Nepodarilo sa načítať dáta ({table}): {error}', { table, error: error.message }), 'error');
       return;
     }
     setData((d) => ({ ...d, [table]: rows ?? [] }));
@@ -137,11 +138,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return false;
   }, [notify]);
 
+  // the language follows the profile (and a language picked before signing in goes to it)
+  const me = data.profiles[0];
+  useEffect(() => {
+    if (!me) return;
+    reconcileLang(me.language, (language) => {
+      supabase.from('profiles').update({ language }).eq('id', me.id).then(() => {});
+    });
+  }, [me?.id, me?.language]);
+
   const api = useMemo<DataApi>(() => {
     const insert: DataApi['insert'] = async (table, row) => {
       const { data: created, error } = await supabase.from(table).insert(row as never).select().single();
       if (error) {
-        fail(`Uloženie zlyhalo: ${error.message}`);
+        fail(t('Uloženie zlyhalo: {error}', { error: error.message }));
         return null;
       }
       await fetchTable(table);
@@ -150,25 +160,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const insertMany: DataApi['insertMany'] = async (table, rows) => {
       if (!rows.length) return true;
       const { error } = await supabase.from(table).insert(rows as never);
-      if (error) return fail(`Uloženie zlyhalo: ${error.message}`);
+      if (error) return fail(t('Uloženie zlyhalo: {error}', { error: error.message }));
       await fetchTable(table);
       return true;
     };
     const update: DataApi['update'] = async (table, id, patch) => {
       const { error } = await supabase.from(table).update(patch as never).eq('id', id);
-      if (error) return fail(`Uloženie zlyhalo: ${error.message}`);
+      if (error) return fail(t('Uloženie zlyhalo: {error}', { error: error.message }));
       await fetchTable(table);
       return true;
     };
     const remove: DataApi['remove'] = async (table, id) => {
       const { error } = await supabase.from(table).delete().eq('id', id);
-      if (error) return fail(`Odstránenie zlyhalo: ${error.message}`);
+      if (error) return fail(t('Odstránenie zlyhalo: {error}', { error: error.message }));
       await fetchTable(table);
       return true;
     };
     const saveSuggestions: DataApi['saveSuggestions'] = async (suggestions) => {
       const del = await supabase.from('sessions').delete().eq('status', 'suggested');
-      if (del.error) return fail(`Návrh sa nepodarilo uložiť: ${del.error.message}`);
+      if (del.error) return fail(t('Návrh sa nepodarilo uložiť: {error}', { error: del.error.message }));
       if (suggestions.length) {
         const { error } = await supabase.from('sessions').insert(
           suggestions.map((s) => ({
@@ -179,7 +189,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             status: 'suggested',
           })),
         );
-        if (error) return fail(`Návrh sa nepodarilo uložiť: ${error.message}`);
+        if (error) return fail(t('Návrh sa nepodarilo uložiť: {error}', { error: error.message }));
       }
       await fetchTable('sessions');
       return true;
@@ -193,7 +203,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ];
       for (const step of steps) {
         const { error } = await step;
-        if (error) return fail(`Zmena zlyhala: ${error.message}`);
+        if (error) return fail(t('Zmena zlyhala: {error}', { error: error.message }));
       }
       await fetchTable('sessions');
       return true;
@@ -201,7 +211,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const setSessionStatus: DataApi['setSessionStatus'] = async (ids, status) => {
       if (!ids.length) return true;
       const { error } = await supabase.from('sessions').update({ status }).in('id', ids);
-      if (error) return fail(`Zmena zlyhala: ${error.message}`);
+      if (error) return fail(t('Zmena zlyhala: {error}', { error: error.message }));
       await fetchTable('sessions');
       return true;
     };

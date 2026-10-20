@@ -17,17 +17,20 @@ import { LeisureSettings } from './LeisureSettings';
 import type { ClassPeriod, GigMode, Priority, Profile } from '../lib/types';
 import { Field, Segmented } from '../editor/fields';
 import { GENDER_OPTIONS, useGender } from '../lib/gender';
+import { t } from '../lib/i18n';
+import { ApkDownload, LanguagePicker } from '../components/AppExtras';
+import { startTutorial } from '../components/Tutorial';
 
 /** Settings saved with a button; everything else on the page saves the moment it changes. */
 const EDITABLE = {
-  day_start: 'Začiatok dňa',
-  day_end: 'Koniec dňa',
-  focus_block_minutes: 'Dĺžka bloku práce',
-  break_minutes: 'Prestávka po bloku',
-  max_focus_minutes_per_day: 'Najviac práce za deň',
-  planning_horizon_days: 'Plánovať dopredu',
-  priority_colors: 'Farby dôležitosti',
-  display_name: 'Meno',
+  get day_start() { return t('Začiatok dňa'); },
+  get day_end() { return t('Koniec dňa'); },
+  get focus_block_minutes() { return t('Dĺžka bloku práce'); },
+  get break_minutes() { return t('Prestávka po bloku'); },
+  get max_focus_minutes_per_day() { return t('Najviac práce za deň'); },
+  get planning_horizon_days() { return t('Plánovať dopredu'); },
+  get priority_colors() { return t('Farby dôležitosti'); },
+  get display_name() { return t('Meno'); },
 } as const;
 type EditableKey = keyof typeof EDITABLE;
 type Draft = Partial<Pick<Profile, EditableKey>>;
@@ -65,7 +68,7 @@ export function SettingsPage() {
   const savedPeriods = profile?.class_periods ?? DEFAULT_CLASS_PERIODS;
   const periodsChanged = periodsDraft !== null && JSON.stringify(periodsDraft) !== JSON.stringify(savedPeriods);
   const dirty = changed.length > 0 || periodsChanged;
-  const changedLabels = [...changed.map((k) => EDITABLE[k]), ...(periodsChanged ? ['Zvonenie'] : [])];
+  const changedLabels = [...changed.map((k) => EDITABLE[k]), ...(periodsChanged ? [t('Zvonenie')] : [])];
 
   // leaving the page (link, back button) with unsaved changes asks first
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
@@ -80,7 +83,7 @@ export function SettingsPage() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  if (!profile) return <div className="page">Načítavam…</div>;
+  if (!profile) return <div className="page">{t('Načítavam…')}</div>;
   const form = { ...profile, ...draft };
   const periods = periodsDraft ?? savedPeriods;
 
@@ -94,18 +97,18 @@ export function SettingsPage() {
   const saveAll = async (): Promise<boolean> => {
     if (!dirty) return true;
     if (form.day_end.slice(0, 5) <= form.day_start.slice(0, 5)) {
-      notify('Koniec dňa musí byť po jeho začiatku.', 'error');
+      notify(t('Koniec dňa musí byť po jeho začiatku.'), 'error');
       return false;
     }
     if (periodsChanged) {
       for (let i = 0; i < periods.length; i++) {
         const p = periods[i];
         if (timeToMinutes(p.end) <= timeToMinutes(p.start)) {
-          notify(`Zvonenie, ${i + 1}. hodina: koniec musí byť po začiatku.`, 'error');
+          notify(t('Zvonenie, {n}. hodina: koniec musí byť po začiatku.', { n: i + 1 }), 'error');
           return false;
         }
         if (i > 0 && timeToMinutes(p.start) < timeToMinutes(periods[i - 1].end)) {
-          notify(`Zvonenie: ${i + 1}. hodina začína skôr, než skončí ${i}.`, 'error');
+          notify(t('Zvonenie: {n}. hodina začína skôr, než skončí {prev}.', { n: i + 1, prev: i }), 'error');
           return false;
         }
       }
@@ -118,14 +121,14 @@ export function SettingsPage() {
     setSaving(false);
     if (!ok) return false;
     discard();
-    notify('Nastavenia uložené.', 'success');
+    notify(t('Nastavenia uložené.'), 'success');
     return true;
   };
 
   const planningDirty = changed.some((k) => PLANNING_KEYS.includes(k));
   const saveButton = (
     <button className={`btn btn-primary${dirty ? ' needs-save' : ''}`} onClick={saveAll} disabled={!dirty || saving}>
-      {saving ? 'Ukladám…' : dirty ? 'Uložiť nastavenia' : 'Všetko uložené'}
+      {saving ? t('Ukladám…') : dirty ? t('Uložiť nastavenia') : t('Všetko uložené')}
     </button>
   );
 
@@ -143,44 +146,44 @@ export function SettingsPage() {
     <div className="page page-settings">
       <header className="toolbar">
         <div className="toolbar-nav">
-          <h1 className="toolbar-title">Nastavenia</h1>
+          <h1 className="toolbar-title">{t('Nastavenia')}</h1>
         </div>
       </header>
 
       <div className="settings">
         <section className={`card-section${planningDirty ? ' is-dirty' : ''}`}>
           <h2>
-            Ako plánovať {planningDirty && <span className="unsaved-tag">neuložené</span>}
+            {t('Ako plánovať')} {planningDirty && <span className="unsaved-tag">{t('neuložené')}</span>}
           </h2>
           <div className="row-2">
-            <Field label="Deň začína o">
+            <Field label={t('Deň začína o')}>
               <input type="time" value={form.day_start.slice(0, 5)} onChange={(e) => set('day_start', e.target.value)} />
             </Field>
-            <Field label="Deň končí o">
+            <Field label={t('Deň končí o')}>
               <input type="time" value={form.day_end.slice(0, 5)} onChange={(e) => set('day_end', e.target.value)} />
             </Field>
           </div>
           <div className="row-2">
-            <Field label="Dĺžka jedného bloku práce (min)" hint={`Teraz ${fmtDuration(form.focus_block_minutes)}.`}>
+            <Field label={t('Dĺžka jedného bloku práce (min)')} hint={t('Teraz {time}.', { time: fmtDuration(form.focus_block_minutes) })}>
               {num('focus_block_minutes')}
             </Field>
-            <Field label="Prestávka po bloku (min)">{num('break_minutes')}</Field>
+            <Field label={t('Prestávka po bloku (min)')}>{num('break_minutes')}</Field>
           </div>
           <div className="row-2">
-            <Field label="Najviac práce za deň (min)" hint={`Teraz ${fmtDuration(form.max_focus_minutes_per_day)}.`}>
+            <Field label={t('Najviac práce za deň (min)')} hint={t('Teraz {time}.', { time: fmtDuration(form.max_focus_minutes_per_day) })}>
               {num('max_focus_minutes_per_day')}
             </Field>
-            <Field label="Plánovať dopredu (dni)">{num('planning_horizon_days')}</Field>
+            <Field label={t('Plánovať dopredu (dni)')}>{num('planning_horizon_days')}</Field>
           </div>
 
-          <h3>Farby dôležitosti</h3>
+          <h3>{t('Farby dôležitosti')}</h3>
           {([1, 2, 3, 4] as Priority[]).map((p) => (
             <div key={p} className="prio-color-row">
               <span className="prio-name" style={{ '--c': form.priority_colors[p - 1] } as CSSProperties}>
                 {PRIORITY_LABELS[p]}
               </span>
               <ColorSwatches
-                label={`Farba: ${PRIORITY_LABELS[p]}`}
+                label={t('Farba: {name}', { name: PRIORITY_LABELS[p] })}
                 value={form.priority_colors[p - 1]}
                 onChange={(c) => {
                   const next = [...form.priority_colors];
@@ -200,7 +203,7 @@ export function SettingsPage() {
         <FreelanceSettings />
 
         <section className="card-section">
-          <h2>Kategórie</h2>
+          <h2>{t('Kategórie')}</h2>
           <ul className="cat-list">
             {categories.map((c) => (
               <li key={c.id}>
@@ -212,49 +215,65 @@ export function SettingsPage() {
             <input
               value={newCat.name}
               onChange={(e) => setNewCat({ ...newCat, name: e.target.value })}
-              placeholder="Nová kategória, napr. Krúžok"
+              placeholder={t('Nová kategória, napr. Krúžok')}
               maxLength={60}
               onKeyDown={(e) => e.key === 'Enter' && addCategory()}
             />
-            <ColorSwatches label="Farba novej kategórie" value={newCat.color} onChange={(c) => setNewCat({ ...newCat, color: c ?? '#12A39A' })} />
+            <ColorSwatches label={t('Farba novej kategórie')} value={newCat.color} onChange={(c) => setNewCat({ ...newCat, color: c ?? '#12A39A' })} />
             <button className="btn btn-ghost" onClick={addCategory}>
-              Pridať kategóriu
+              {t('Pridať kategóriu')}
             </button>
           </div>
-          <p className="small muted">Odstránenie kategórie nezmaže úlohy ani udalosti, len im zruší kategóriu.</p>
+          <p className="small muted">{t('Odstránenie kategórie nezmaže úlohy ani udalosti, len im zruší kategóriu.')}</p>
         </section>
 
         <section className="card-section">
-          <h2>Vzhľad</h2>
-          <Field label="Téma">
+          <h2>{t('Vzhľad')}</h2>
+          <Field label={t('Téma')}>
             <Segmented
-              label="Téma"
+              label={t('Téma')}
               value={theme}
-              onChange={(t) => {
-                setTheme(t);
-                setThemeState(t);
+              onChange={(v) => {
+                setTheme(v);
+                setThemeState(v);
               }}
               options={[
-                { value: 'auto', label: 'Podľa systému' },
-                { value: 'light', label: 'Svetlá' },
-                { value: 'dark', label: 'Tmavá' },
+                { value: 'auto', get label() { return t('Podľa systému'); } },
+                { value: 'light', get label() { return t('Svetlá'); } },
+                { value: 'dark', get label() { return t('Tmavá'); } },
               ]}
             />
           </Field>
+          <Field label={t('Jazyk')}>
+            <LanguagePicker save={(language) => update('profiles', profile.id, { language })} />
+          </Field>
+        </section>
+
+        <section className="card-section">
+          <h2>{t('Appka')}</h2>
+          <p className="small muted">
+            {t('Android appka otvára tento istý Rozvrh, len bez prehliadača a s pripomienkami priamo v telefóne.')}
+          </p>
+          <div className="actions">
+            <ApkDownload />
+            <button className="btn btn-ghost" onClick={startTutorial}>
+              {t('Spustiť návod znova')}
+            </button>
+          </div>
         </section>
 
         <NotificationSettings />
 
         <section className={`card-section${changed.includes('display_name') ? ' is-dirty' : ''}`}>
           <h2>
-            Účet {changed.includes('display_name') && <span className="unsaved-tag">neuložené</span>}
+            {t('Účet')} {changed.includes('display_name') && <span className="unsaved-tag">{t('neuložené')}</span>}
           </h2>
-          <Field label="Meno">
+          <Field label={t('Meno')}>
             <input value={form.display_name ?? ''} onChange={(e) => set('display_name', e.target.value)} maxLength={80} />
           </Field>
           <div className="field">
-            <span className="field-label">Oslovovanie</span>
-            <div className="gender-pick in-settings" role="radiogroup" aria-label="Oslovovanie">
+            <span className="field-label">{t('Oslovovanie')}</span>
+            <div className="gender-pick in-settings" role="radiogroup" aria-label={t('Oslovovanie')}>
               {GENDER_OPTIONS.map((o) => (
                 <button
                   key={o.value}
@@ -270,12 +289,13 @@ export function SettingsPage() {
               ))}
             </div>
             <span className="field-hint">
-              Ako ťa appka oslovuje v tlačidlách a správach. Ukladá sa hneď
-              {profile.gender ? '' : ', zatiaľ nie je vybrané'}.
+              {profile.gender
+                ? t('Ako ťa appka oslovuje v tlačidlách a správach. Ukladá sa hneď.')
+                : t('Ako ťa appka oslovuje v tlačidlách a správach. Ukladá sa hneď, zatiaľ nie je vybrané.')}
             </span>
           </div>
           <p className="small muted">
-            {g('Prihlásený', 'Prihlásená')} ako {user?.email}
+            {g('Prihlásený ako {email}', 'Prihlásená ako {email}', { email: user?.email ?? '' })}
           </p>
           <div className="actions">
             {saveButton}
@@ -287,31 +307,31 @@ export function SettingsPage() {
                 await supabase.auth.signOut();
               }}
             >
-              Odhlásiť sa
+              {t('Odhlásiť sa')}
             </button>
           </div>
         </section>
       </div>
 
       {dirty && (
-        <div className="save-bar" role="region" aria-label="Neuložené zmeny">
+        <div className="save-bar" role="region" aria-label={t('Neuložené zmeny')}>
           <span className="save-dot" aria-hidden="true" />
           <p>
-            <b>Neuložené zmeny</b>
+            <b>{t('Neuložené zmeny')}</b>
             <span>{changedLabels.join(', ')}</span>
           </p>
           <button className="btn btn-ghost" onClick={discard} disabled={saving}>
-            Zahodiť
+            {t('Zahodiť')}
           </button>
           <button className="btn btn-primary" onClick={saveAll} disabled={saving}>
-            {saving ? 'Ukladám…' : 'Uložiť nastavenia'}
+            {saving ? t('Ukladám…') : t('Uložiť nastavenia')}
           </button>
         </div>
       )}
 
       {blocker.state === 'blocked' && (
         <Modal
-          title="Neuložené nastavenia"
+          title={t('Neuložené nastavenia')}
           onClose={() => blocker.reset()}
           footer={
             <>
@@ -323,11 +343,11 @@ export function SettingsPage() {
                   blocker.proceed();
                 }}
               >
-                Zahodiť zmeny
+                {t('Zahodiť zmeny')}
               </button>
               <span className="spacer" />
               <button type="button" className="btn btn-ghost" onClick={() => blocker.reset()}>
-                Zostať
+                {t('Zostať')}
               </button>
               <button
                 type="button"
@@ -338,20 +358,20 @@ export function SettingsPage() {
                   else blocker.reset();
                 }}
               >
-                Uložiť a odísť
+                {t('Uložiť a odísť')}
               </button>
             </>
           }
         >
           <p>
-            {g('Zmenil si', 'Zmenila si')} nastavenia, ktoré ešte nie sú uložené:
+            {g('Zmenil si nastavenia, ktoré ešte nie sú uložené:', 'Zmenila si nastavenia, ktoré ešte nie sú uložené:')}
           </p>
           <ul className="unsaved-list">
             {changedLabels.map((l) => (
               <li key={l}>{l}</li>
             ))}
           </ul>
-          <p className="muted small">Chceš ich pred odchodom uložiť, alebo zahodiť?</p>
+          <p className="muted small">{t('Chceš ich pred odchodom uložiť, alebo zahodiť?')}</p>
         </Modal>
       )}
     </div>
@@ -370,12 +390,12 @@ function CategoryRow({ id }: { id: string }) {
         value={name}
         onChange={(e) => setName(e.target.value)}
         onBlur={() => name.trim() && name !== c.name && update('categories', c.id, { name: name.trim() })}
-        aria-label="Názov kategórie"
+        aria-label={t('Názov kategórie')}
         maxLength={60}
       />
-      <ColorSwatches label={`Farba ${c.name}`} value={c.color} onChange={(col) => col && update('categories', c.id, { color: col })} />
+      <ColorSwatches label={t('Farba: {name}', { name: c.name })} value={c.color} onChange={(col) => col && update('categories', c.id, { color: col })} />
       <button className="btn btn-danger-ghost" onClick={() => remove('categories', c.id)}>
-        Odstrániť
+        {t('Odstrániť')}
       </button>
     </div>
   );
@@ -404,7 +424,7 @@ function SchoolSettings({
     if (p === parity) return;
     const anchor = p === 'odd' ? thisMonday : addDays(thisMonday, -7);
     if (await update('profiles', profile.id, { odd_week_anchor: toDateInput(anchor) })) {
-      notify(`Tento týždeň je teraz ${p === 'odd' ? 'nepárny' : 'párny'}.`, 'success');
+      notify(p === 'odd' ? t('Tento týždeň je teraz nepárny.') : t('Tento týždeň je teraz párny.'), 'success');
     }
   };
 
@@ -419,46 +439,50 @@ function SchoolSettings({
 
   return (
     <section className={`card-section${dirty ? ' is-dirty' : ''}`}>
-      <h2>Škola {dirty && <span className="unsaved-tag">neuložené zvonenie</span>}</h2>
-      <Field label={`Tento týždeň (${fmt(thisMonday, 'd. M.')} – ${fmt(addDays(thisMonday, 6), 'd. M.')}) je`}>
+      <h2>
+        {t('Škola')} {dirty && <span className="unsaved-tag">{t('neuložené zvonenie')}</span>}
+      </h2>
+      <Field
+        label={t('Tento týždeň ({from} – {to}) je', { from: fmt(thisMonday, 'd. M.'), to: fmt(addDays(thisMonday, 6), 'd. M.') })}
+      >
         <Segmented
-          label="Párnosť tohto týždňa"
+          label={t('Párnosť tohto týždňa')}
           value={parity}
           onChange={setParity}
           options={[
-            { value: 'odd', label: 'Nepárny' },
-            { value: 'even', label: 'Párny' },
+            { value: 'odd', get label() { return t('Nepárny'); } },
+            { value: 'even', get label() { return t('Párny'); } },
           ]}
         />
       </Field>
-      <p className="small muted">Ďalšie týždne sa striedajú samé, aj cez nový rok.</p>
+      <p className="small muted">{t('Ďalšie týždne sa striedajú samé, aj cez nový rok.')}</p>
 
-      <h3>Zvonenie</h3>
-      <p className="small muted">Podľa týchto časov sa vypĺňa tabuľka rozvrhu hodín.</p>
+      <h3>{t('Zvonenie')}</h3>
+      <p className="small muted">{t('Podľa týchto časov sa vypĺňa tabuľka rozvrhu hodín.')}</p>
       <ol className="bells">
         {periods.map((p, i) => (
           <li key={i}>
             <b>{i + 1}.</b>
-            <input type="time" value={p.start} onChange={(e) => setPeriod(i, 'start', e.target.value)} aria-label={`${i + 1}. hodina od`} />
+            <input type="time" value={p.start} onChange={(e) => setPeriod(i, 'start', e.target.value)} aria-label={t('{n}. hodina od', { n: i + 1 })} />
             <span>–</span>
-            <input type="time" value={p.end} onChange={(e) => setPeriod(i, 'end', e.target.value)} aria-label={`${i + 1}. hodina do`} />
+            <input type="time" value={p.end} onChange={(e) => setPeriod(i, 'end', e.target.value)} aria-label={t('{n}. hodina do', { n: i + 1 })} />
             <button
               type="button"
               className="btn btn-danger-ghost"
               onClick={() => setPeriods(periods.filter((_, j) => j !== i))}
-              aria-label={`Odstrániť ${i + 1}. hodinu`}
+              aria-label={t('Odstrániť {n}. hodinu', { n: i + 1 })}
             >
-              Odstrániť
+              {t('Odstrániť')}
             </button>
           </li>
         ))}
       </ol>
       <div className="actions">
         <button className="btn btn-ghost" onClick={addPeriod} disabled={periods.length >= 16}>
-          Pridať hodinu
+          {t('Pridať hodinu')}
         </button>
         <button className="btn btn-ghost" onClick={() => setPeriods(DEFAULT_CLASS_PERIODS)}>
-          Predvolené zvonenie
+          {t('Predvolené zvonenie')}
         </button>
         {saveButton}
       </div>
@@ -483,19 +507,18 @@ function FreelanceSettings() {
     const ok = await update('profiles', profile.id, { freelance_enabled: on });
     if (!ok) setEnabled(!on);
     if (ok) {
-      notify(on ? 'Freelance mód zapnutý. Nájdeš ho v novej záložke.' : 'Freelance mód vypnutý. Dáta ostávajú uložené.', 'success');
+      notify(on ? t('Freelance mód zapnutý. Nájdeš ho v novej záložke.') : t('Freelance mód vypnutý. Dáta ostávajú uložené.'), 'success');
     }
   };
 
   return (
     <section className="card-section">
-      <h2>Freelance</h2>
+      <h2>{t('Freelance')}</h2>
       <label className="switch-row">
         <span>
-          <b>Freelance mód</b>
+          <b>{t('Freelance mód')}</b>
           <span className="small muted">
-            Záložka na brigády a zákazky: zárobky, výdavky, príprava a cesta. Akcie sa ukážu v rozvrhu a plánovač ich
-            obíde.
+            {t('Záložka na brigády a zákazky: zárobky, výdavky, príprava a cesta. Akcie sa ukážu v rozvrhu a plánovač ich obíde.')}
           </span>
         </span>
         <input
@@ -507,14 +530,14 @@ function FreelanceSettings() {
         />
       </label>
       {enabled && (
-        <Field label="Čo robíš najčastejšie" hint={GIG_MODES[profile.freelance_default_mode].hint}>
+        <Field label={t('Čo robíš najčastejšie')} hint={GIG_MODES[profile.freelance_default_mode].hint}>
           <Segmented
-            label="Predvolený druh"
+            label={t('Predvolený druh')}
             value={profile.freelance_default_mode}
             onChange={(m: GigMode) => update('profiles', profile.id, { freelance_default_mode: m })}
             options={[
-              { value: 'event', label: 'Akcie na mieste' },
-              { value: 'project', label: 'Projekty do termínu' },
+              { value: 'event', get label() { return t('Akcie na mieste'); } },
+              { value: 'project', get label() { return t('Projekty do termínu'); } },
             ]}
           />
         </Field>

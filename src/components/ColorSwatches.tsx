@@ -1,4 +1,5 @@
 import { SWATCHES } from '../lib/meta';
+import { t } from '../lib/i18n';
 
 interface Props {
   value: string | null;
@@ -36,12 +37,12 @@ export function ColorSwatches({ value, onChange, allowNone, label }: Props) {
           <span className="sr-only">{c}</span>
         </button>
       ))}
-      <label className="swatch swatch-custom" title="Vlastná farba">
+      <label className="swatch swatch-custom" title={t('Vlastná farba')}>
         <input
           type="color"
           value={value ?? '#2B4BDB'}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
-          aria-label="Vlastná farba"
+          aria-label={t('Vlastná farba')}
         />
       </label>
     </div>

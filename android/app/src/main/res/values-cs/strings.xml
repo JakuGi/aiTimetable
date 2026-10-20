@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channel_reminders">Připomínky</string>
+    <string name="channel_reminders_desc">Události, spoje, bloky práce a odchod na akce</string>
+    <string name="offline_title">Bez připojení</string>
+    <string name="offline_text">Rozvrh potřebuje při prvním otevření internet.</string>
+    <string name="offline_retry">Zkusit znovu</string>
+</resources>

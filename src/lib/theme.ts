@@ -1,3 +1,5 @@
+import { syncSystemBars } from './android';
+
 export type Theme = 'auto' | 'light' | 'dark';
 
 const KEY = 'rozvrh.theme';
@@ -14,6 +16,7 @@ export function getTheme(): Theme {
 export function applyTheme(t: Theme = getTheme()) {
   if (t === 'auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', t);
+  syncSystemBars();
 }
 
 export function setTheme(t: Theme) {

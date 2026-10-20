@@ -7,6 +7,7 @@ import { fmtDuration, fromLocalInput, toLocalInput } from '../lib/time';
 import type { Priority, Task } from '../lib/types';
 import { CategorySelect, Field, Segmented } from './fields';
 import { NEW_TITLES, NewKindSwitch } from './NewKindSwitch';
+import { t } from '../lib/i18n';
 
 const ESTIMATES = [15, 30, 60, 90, 120, 180, 240];
 
@@ -25,8 +26,8 @@ export function TaskDialog({ initial, onClose }: { initial: Partial<Task>; onClo
   const covered = initial.id ? coveredMinutes(initial.id, sessions) : 0;
 
   const save = async (status?: Task['status']) => {
-    if (!title.trim()) return setError('Doplň, čo treba urobiť.');
-    if (!Number.isFinite(estimate) || estimate < 5) return setError('Odhad musí byť aspoň 5 minút.');
+    if (!title.trim()) return setError(t('Doplň, čo treba urobiť.'));
+    if (!Number.isFinite(estimate) || estimate < 5) return setError(t('Odhad musí byť aspoň 5 minút.'));
     const nextStatus = status ?? initial.status ?? 'todo';
     const row = {
       title: title.trim(),
@@ -51,45 +52,45 @@ export function TaskDialog({ initial, onClose }: { initial: Partial<Task>; onClo
 
   return (
     <Modal
-      title={initial.id ? 'Upraviť úlohu' : NEW_TITLES.task}
+      title={initial.id ? t('Upraviť úlohu') : NEW_TITLES.task}
       onClose={onClose}
       footer={
         <>
           {initial.id && (
             <button type="button" className="btn btn-danger-ghost" onClick={del}>
-              Odstrániť
+              {t('Odstrániť')}
             </button>
           )}
           <span className="spacer" />
           {initial.id && initial.status !== 'done' && (
             <button type="button" className="btn btn-ghost" onClick={() => save('done')} disabled={busy}>
-              Označiť ako hotové
+              {t('Označiť ako hotové')}
             </button>
           )}
           {initial.status === 'done' && (
             <button type="button" className="btn btn-ghost" onClick={() => save('todo')} disabled={busy}>
-              Vrátiť medzi otvorené
+              {t('Vrátiť medzi otvorené')}
             </button>
           )}
           <button type="button" className="btn btn-primary" onClick={() => save()} disabled={busy}>
-            {initial.id ? 'Uložiť zmeny' : 'Pridať úlohu'}
+            {initial.id ? t('Uložiť zmeny') : t('Pridať úlohu')}
           </button>
         </>
       }
     >
       {!initial.id && <NewKindSwitch value="task" title={title} />}
-      <Field label="Čo treba urobiť">
+      <Field label={t('Čo treba urobiť')}>
         <input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Napr. Referát z dejepisu"
+          placeholder={t('Napr. Referát z dejepisu')}
           maxLength={200}
         />
       </Field>
-      <Field label="Dôležitosť">
+      <Field label={t('Dôležitosť')}>
         <Segmented
-          label="Dôležitosť"
+          label={t('Dôležitosť')}
           value={priority}
           onChange={setPriority}
           options={([1, 2, 3, 4] as Priority[]).map((p) => ({
@@ -99,7 +100,7 @@ export function TaskDialog({ initial, onClose }: { initial: Partial<Task>; onClo
           }))}
         />
       </Field>
-      <Field label="Koľko času to zaberie" hint="Plánovač to rozdelí na bloky podľa nastavení.">
+      <Field label={t('Koľko času to zaberie')} hint={t('Plánovač to rozdelí na bloky podľa nastavení.')}>
         <div className="estimate">
           <div className="chips">
             {ESTIMATES.map((m) => (
@@ -121,26 +122,30 @@ export function TaskDialog({ initial, onClose }: { initial: Partial<Task>; onClo
               step={5}
               value={estimate}
               onChange={(e) => setEstimate(Number(e.target.value))}
-              aria-label="Odhad v minútach"
+              aria-label={t('Odhad v minútach')}
             />
             min
           </span>
         </div>
       </Field>
       <div className="row-2">
-        <Field label="Termín (dokedy)">
+        <Field label={t('Termín (dokedy)')}>
           <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
         </Field>
-        <Field label="Kategória">
+        <Field label={t('Kategória')}>
           <CategorySelect value={categoryId} onChange={setCategoryId} />
         </Field>
       </div>
-      <Field label="Poznámka">
+      <Field label={t('Poznámka')}>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} maxLength={5000} />
       </Field>
       {initial.id && (
         <p className="muted small">
-          Odpracované {fmtDuration(done)}, naplánované spolu {fmtDuration(covered)} z {fmtDuration(estimate)}.
+          {t('Odpracované {done}, naplánované spolu {covered} z {total}.', {
+            done: fmtDuration(done),
+            covered: fmtDuration(covered),
+            total: fmtDuration(estimate),
+          })}
         </p>
       )}
       {error && <p className="form-error">{error}</p>}

@@ -3,9 +3,10 @@ import { Modal } from '../components/Modal';
 import { ColorSwatches } from '../components/ColorSwatches';
 import { useData } from '../lib/data';
 import { DEFAULT_CLASS_PERIODS, PARITY_LABELS, ROUTINE_KINDS } from '../lib/meta';
-import { WEEKDAY_SHORT, timeToMinutes } from '../lib/time';
+import { weekdaysShort, timeToMinutes } from '../lib/time';
 import type { RoutineBlock, RoutineKind, WeekParity } from '../lib/types';
 import { CategorySelect, Field, Segmented } from './fields';
+import { t } from '../lib/i18n';
 
 const short = (t?: string) => (t ? t.slice(0, 5) : '');
 
@@ -60,10 +61,10 @@ export function RoutineDialog({ initial, onClose }: { initial: Partial<RoutineBl
   };
 
   const save = async (andNext = false) => {
-    if (!title.trim()) return setError('Doplň názov.');
-    if (!days.length) return setError('Vyber aspoň jeden deň.');
-    if (timeToMinutes(end) <= timeToMinutes(start)) return setError('Koniec musí byť po začiatku.');
-    if (validFrom && validUntil && validUntil < validFrom) return setError('Platnosť "do" musí byť po "od".');
+    if (!title.trim()) return setError(t('Doplň názov.'));
+    if (!days.length) return setError(t('Vyber aspoň jeden deň.'));
+    if (timeToMinutes(end) <= timeToMinutes(start)) return setError(t('Koniec musí byť po začiatku.'));
+    if (validFrom && validUntil && validUntil < validFrom) return setError(t('Platnosť "do" musí byť po "od".'));
     const row = {
       title: title.trim(),
       kind,
@@ -103,29 +104,29 @@ export function RoutineDialog({ initial, onClose }: { initial: Partial<RoutineBl
 
   return (
     <Modal
-      title={initial.id ? 'Upraviť pravidelný blok' : 'Pridať do môjho týždňa'}
+      title={initial.id ? t('Upraviť pravidelný blok') : t('Pridať do rozvrhu')}
       onClose={onClose}
       footer={
         <>
           {initial.id && (
             <button type="button" className="btn btn-danger-ghost" onClick={del}>
-              Odstrániť
+              {t('Odstrániť')}
             </button>
           )}
           <span className="spacer" />
           {!initial.id && (
             <button type="button" className="btn btn-ghost" onClick={() => save(true)} disabled={busy}>
-              Uložiť a pridať ďalší
+              {t('Uložiť a pridať ďalší')}
             </button>
           )}
           <button type="button" className="btn btn-primary" onClick={() => save()} disabled={busy}>
-            {initial.id ? 'Uložiť zmeny' : 'Pridať'}
+            {initial.id ? t('Uložiť zmeny') : t('Pridať')}
           </button>
         </>
       }
     >
       <Segmented
-        label="Druh"
+        label={t('Druh')}
         value={kind}
         onChange={changeKind}
         options={(Object.keys(ROUTINE_KINDS) as RoutineKind[]).map((k) => ({
@@ -134,12 +135,12 @@ export function RoutineDialog({ initial, onClose }: { initial: Partial<RoutineBl
           color: ROUTINE_KINDS[k].color,
         }))}
       />
-      <Field label={kind === 'class' ? 'Predmet' : 'Názov'}>
+      <Field label={kind === 'class' ? t('Predmet') : t('Názov')}>
         <input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={kind === 'class' ? 'Napr. Matematika' : kind === 'work' ? 'Napr. Brigáda v kaviarni' : 'Napr. Futbal'}
+          placeholder={kind === 'class' ? t('Napr. Matematika') : kind === 'work' ? t('Napr. Brigáda v kaviarni') : t('Napr. Futbal')}
           maxLength={120}
           list="routine-titles"
         />
@@ -150,9 +151,9 @@ export function RoutineDialog({ initial, onClose }: { initial: Partial<RoutineBl
         </datalist>
       </Field>
       <div className="field">
-        <span className="field-label">Ktoré dni</span>
-        <div className="days-picker" role="group" aria-label="Dni v týždni">
-          {WEEKDAY_SHORT.map((label, i) => (
+        <span className="field-label">{t('Ktoré dni')}</span>
+        <div className="days-picker" role="group" aria-label={t('Dni v týždni')}>
+          {weekdaysShort().map((label, i) => (
             <button key={label} type="button" aria-pressed={days.includes(i + 1)} onClick={() => toggleDay(i + 1)}>
               {label}
             </button>
@@ -160,19 +161,19 @@ export function RoutineDialog({ initial, onClose }: { initial: Partial<RoutineBl
         </div>
         <div className="quick-row">
           <button type="button" className="link-btn" onClick={() => setDays([1, 2, 3, 4, 5])}>
-            Po–Pi
+            {t('Po–Pi')}
           </button>
           <button type="button" className="link-btn" onClick={() => setDays([6, 7])}>
-            Víkend
+            {t('Víkend')}
           </button>
           <button type="button" className="link-btn" onClick={() => setDays([1, 2, 3, 4, 5, 6, 7])}>
-            Každý deň
+            {t('Každý deň')}
           </button>
         </div>
       </div>
-      <Field label="Ktoré týždne">
+      <Field label={t('Ktoré týždne')}>
         <Segmented
-          label="Ktoré týždne"
+          label={t('Ktoré týždne')}
           value={parity}
           onChange={setParity}
           options={(['all', 'odd', 'even'] as WeekParity[]).map((p) => ({ value: p, label: PARITY_LABELS[p] }))}
@@ -180,8 +181,8 @@ export function RoutineDialog({ initial, onClose }: { initial: Partial<RoutineBl
       </Field>
       {kind === 'class' && (
         <div className="field">
-          <span className="field-label">Hodina podľa zvonenia</span>
-          <div className="periods" role="group" aria-label="Vyučovacie hodiny">
+          <span className="field-label">{t('Hodina podľa zvonenia')}</span>
+          <div className="periods" role="group" aria-label={t('Vyučovacie hodiny')}>
             {periods.map((p, i) => (
               <button
                 key={i}
@@ -196,44 +197,44 @@ export function RoutineDialog({ initial, onClose }: { initial: Partial<RoutineBl
             ))}
           </div>
           <span className="field-hint">
-            Klikni na hodinu. Susedná hodina pridá dvojhodinovku. Časy zvonenia zmeníš v Nastaveniach.
+            {t('Klikni na hodinu. Susedná hodina pridá dvojhodinovku. Časy zvonenia zmeníš v Nastaveniach.')}
           </span>
         </div>
       )}
       <div className="row-2">
-        <Field label="Od">
+        <Field label={t('Od')}>
           <input type="time" value={start} onChange={(e) => setStart(e.target.value)} step={300} />
         </Field>
-        <Field label="Do">
+        <Field label={t('Do')}>
           <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} step={300} />
         </Field>
       </div>
-      <Field label={kind === 'class' ? 'Učebňa' : 'Miesto'}>
+      <Field label={kind === 'class' ? t('Učebňa') : t('Miesto')}>
         <input
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder={kind === 'class' ? 'Napr. 204' : ''}
+          placeholder={kind === 'class' ? t('Napr. 204') : ''}
           maxLength={200}
         />
       </Field>
       <details className="more">
-        <summary>Ďalšie možnosti</summary>
-        <Field label="Poznámka">
+        <summary>{t('Ďalšie možnosti')}</summary>
+        <Field label={t('Poznámka')}>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
         </Field>
         <div className="row-2">
-          <Field label="Kategória">
+          <Field label={t('Kategória')}>
             <CategorySelect value={categoryId} onChange={setCategoryId} />
           </Field>
-          <Field label="Farba">
-            <ColorSwatches label="Farba" value={color} onChange={setColor} allowNone="Podľa druhu alebo kategórie" />
+          <Field label={t('Farba')}>
+            <ColorSwatches label={t('Farba')} value={color} onChange={setColor} allowNone={t('Podľa druhu alebo kategórie')} />
           </Field>
         </div>
         <div className="row-2">
-          <Field label="Platí od" hint="Napr. začiatok polroka. Prázdne = platí stále.">
+          <Field label={t('Platí od')} hint={t('Napr. začiatok polroka. Prázdne = platí stále.')}>
             <input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
           </Field>
-          <Field label="Platí do">
+          <Field label={t('Platí do')}>
             <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
           </Field>
         </div>

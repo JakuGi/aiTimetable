@@ -1,5 +1,6 @@
 import { addDays, format, getISODay, startOfDay, startOfWeek } from 'date-fns';
-import { sk } from 'date-fns/locale';
+import { cs, enGB, sk } from 'date-fns/locale';
+import { getLang, t } from './i18n';
 
 export const MINUTE = 60_000;
 export const HOUR = 60 * MINUTE;
@@ -34,11 +35,28 @@ export function weekDays(start: Date, count = 7): Date[] {
 
 export const isoWeekday = getISODay;
 
-export const WEEKDAY_SHORT = ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'];
-export const WEEKDAY_LONG = ['Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota', 'Nedeľa'];
+const WEEKDAY_SHORT = ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'];
+const WEEKDAY_LONG = ['Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota', 'Nedeľa'];
+
+/** Monday = 0 */
+export const weekdayShort = (i: number) => t(WEEKDAY_SHORT[i]);
+export const weekdayLong = (i: number) => t(WEEKDAY_LONG[i]);
+export const weekdaysShort = () => WEEKDAY_SHORT.map((d) => t(d));
+
+const LOCALES = { sk, cs, en: enGB };
+
+/** Patterns are written the Slovak way ("d. M."); English writes dates as "20/10". */
+function localPattern(pattern: string) {
+  if (getLang() !== 'en') return pattern;
+  return pattern
+    .replace('d. M. yyyy', 'd/M/yyyy')
+    .replace('d. M.', 'd/M')
+    .replace('d. MMMM', 'd MMMM')
+    .replace(/^d\.$/, 'd');
+}
 
 export function fmt(d: Date | string, pattern: string): string {
-  return format(typeof d === 'string' ? new Date(d) : d, pattern, { locale: sk });
+  return format(typeof d === 'string' ? new Date(d) : d, localPattern(pattern), { locale: LOCALES[getLang()] });
 }
 
 export function fmtTime(d: Date | string): string {
@@ -73,13 +91,13 @@ export function relativeDeadline(deadline: string, now = new Date()): string {
   const d = new Date(deadline);
   const diffDays = Math.round((startOfDay(d).getTime() - startOfDay(now).getTime()) / DAY);
   if (d.getTime() < now.getTime()) {
-    if (diffDays === 0) return 'dnes, už po termíne';
-    return diffDays === -1 ? 'včera, po termíne' : `po termíne ${-diffDays} d`;
+    if (diffDays === 0) return t('dnes, už po termíne');
+    return diffDays === -1 ? t('včera, po termíne') : t('po termíne {n} d', { n: -diffDays });
   }
-  if (diffDays === 0) return `dnes o ${fmtTime(d)}`;
-  if (diffDays === 1) return `zajtra o ${fmtTime(d)}`;
-  if (diffDays < 7) return `${fmt(d, 'EEEE')} o ${fmtTime(d)}`;
-  return `o ${diffDays} dní, ${fmt(d, 'd. M.')}`;
+  if (diffDays === 0) return t('dnes o {time}', { time: fmtTime(d) });
+  if (diffDays === 1) return t('zajtra o {time}', { time: fmtTime(d) });
+  if (diffDays < 7) return t('{day} o {time}', { day: fmt(d, 'EEEE'), time: fmtTime(d) });
+  return t('o {n} dní, {date}', { n: diffDays, date: fmt(d, 'd. M.') });
 }
 
 /**

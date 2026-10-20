@@ -1,0 +1,58 @@
+plugins {
+    id 'com.android.application'
+}
+
+// signing/keystore.properties (not in git): storeFile, storePassword, keyAlias, keyPassword
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('signing/keystore.properties')
+if (keystoreFile.exists()) keystoreFile.withInputStream { keystoreProps.load(it) }
+
+android {
+    namespace 'com.jakugi.rozvrh'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.jakugi.rozvrh'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+        buildConfigField 'String', 'APP_URL', '"https://ai-timetable-delta.vercel.app/"'
+        manifestPlaceholders = [cleartext: 'false']
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreFile.exists()) {
+                storeFile rootProject.file("signing/${keystoreProps['storeFile']}")
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        // for trying the app against `npm run dev` on this computer: adb reverse tcp:3000 tcp:3000
+        debug {
+            applicationIdSuffix '.dev'
+            buildConfigField 'String', 'APP_URL', '"http://localhost:3000/"'
+            manifestPlaceholders = [cleartext: 'true']
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig keystoreFile.exists() ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

@@ -8,12 +8,10 @@ export interface Profile {
   focus_block_minutes: number;
   break_minutes: number;
   max_focus_minutes_per_day: number;
+  /** free time kept between work blocks on days with work (0 = none) */
   leisure_minutes_per_day: number;
-  leisure_when: LeisureMode;
-  leisure_start: string; // "HH:MM[:SS]", for leisure_when = 'custom'
-  leisure_days: LeisureDay[]; // Monday..Sunday, for leisure_when = 'per_day'
-  /** false: the planner keeps only the free time drawn by hand (FreeBlock) */
-  leisure_auto: boolean;
+  /** 'sk' | 'cs' | 'en'; null = not chosen yet (the device's language) */
+  language: string | null;
   /** how the app talks to the user: "urobil" / "urobila"; null = not chosen yet */
   gender: Gender | null;
   planning_horizon_days: number;
@@ -45,16 +43,6 @@ export interface FreeBlock {
   starts_at: string;
   ends_at: string;
   note: string | null;
-}
-
-/** When free time is kept: a preferred window the planner leaves empty. */
-export type LeisureWhen = 'after_school' | 'evening' | 'before_sleep' | 'custom' | 'flexible';
-export type LeisureMode = LeisureWhen | 'per_day';
-
-export interface LeisureDay {
-  when: LeisureWhen | 'off';
-  start: string | null; // "HH:MM" for 'custom'
-  minutes: number;
 }
 
 /** event = a gig at a place and time (loading, moving, event work); project = task-based work */

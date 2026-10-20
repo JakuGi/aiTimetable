@@ -137,6 +137,27 @@ async function tick() {
   return { users: userIds.length, sent };
 }
 
+const TEST_TEXTS = {
+  sk: {
+    title: 'Testovacia notifikácia',
+    body: 'Ak toto vidíš, upozornenia z Rozvrhu na tomto zariadení fungujú.',
+    delayed: 'Oneskorený test',
+    delayedBody: 'Prišla {n} s po ťuknutí. Ak ju vidíš pri zavretej appke, upozornenia fungujú aj na pozadí.',
+  },
+  cs: {
+    title: 'Testovací notifikace',
+    body: 'Pokud tohle vidíš, upozornění z Rozvrhu na tomto zařízení fungují.',
+    delayed: 'Opožděný test',
+    delayedBody: 'Přišla {n} s po ťuknutí. Pokud ji vidíš při zavřené appce, upozornění fungují i na pozadí.',
+  },
+  en: {
+    title: 'Test notification',
+    body: 'If you can see this, notifications from Rozvrh work on this device.',
+    delayed: 'Delayed test',
+    delayedBody: 'Sent {n} s after the tap. If you see it with the app closed, notifications work in the background too.',
+  },
+};
+
 async function test(req: Request, delaySeconds: number) {
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return json({ error: 'Chýba prihlásenie.' }, 401);
@@ -149,11 +170,11 @@ async function test(req: Request, delaySeconds: number) {
     .eq('user_id', user.user.id);
   if (!subs?.length) return json({ sent: 0, failed: 0, devices: 0 });
 
+  const { data: prof } = await db.from('profiles').select('language').eq('id', user.user.id).maybeSingle();
+  const text = TEST_TEXTS[prof?.language === 'cs' || prof?.language === 'en' ? prof.language : 'sk'];
   const note = {
-    title: delaySeconds ? 'Oneskorený test' : 'Testovacia notifikácia',
-    body: delaySeconds
-      ? `Prišla ${delaySeconds} s po ťuknutí. Ak ju vidíš pri zavretej appke, upozornenia fungujú aj na pozadí.`
-      : 'Ak toto vidíš, upozornenia z Rozvrhu na tomto zariadení fungujú.',
+    title: delaySeconds ? text.delayed : text.title,
+    body: delaySeconds ? text.delayedBody.replace('{n}', String(delaySeconds)) : text.body,
     url: '/settings',
     tag: `test:${Date.now()}`,
   };

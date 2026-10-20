@@ -13,6 +13,7 @@ import { isSameDay, isToday } from 'date-fns';
 import { atMinutes, fmt, fmtDuration, fmtTime, minutesToTime, MINUTE } from '../lib/time';
 import type { LeisureBand } from '../lib/leisure';
 import { textOn } from '../lib/meta';
+import { t } from '../lib/i18n';
 import { useGridDrag } from './useGridDrag';
 
 export type GridVariant = 'routine' | 'solid' | 'pencil' | 'done' | 'reserved';
@@ -147,8 +148,8 @@ export function TimeGrid({
   const hours = useMemo(() => Array.from({ length: toHour - fromHour }, (_, i) => fromHour + i), [fromHour, toHour]);
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -308,8 +309,8 @@ export function TimeGrid({
 
       {hasStrip && (
         <div className="grid-strip">
-          <div className="grid-gutter strip-label" title="Celý deň">
-            <span className="strip-label-long">celý deň</span>
+          <div className="grid-gutter strip-label" title={t('Celý deň')}>
+            <span className="strip-label-long">{t('celý deň')}</span>
           </div>
           {days.map((d) => (
             <div key={d.toISOString()} className="strip-cell">
@@ -376,14 +377,14 @@ export function TimeGrid({
                     return (
                       <div
                         key={b.id}
-                        className={`leisure-band${b.gap ? ' is-gap' : ''}${b.hint ? ' is-hint' : ''}`}
+                        className="leisure-band is-gap"
                         style={{ top, height }}
-                        title={`${b.gap ? 'Voľno medzi prácou' : b.hint ? 'Tip na voľný čas' : 'Voľný čas'}, ${fmtTime(b.start)}–${fmtTime(b.end)}`}
+                        title={`${t('Voľno medzi prácou')}, ${fmtTime(b.start)}–${fmtTime(b.end)}`}
                         aria-hidden="true"
                       >
                         {height >= 22 && (
                           <span className="leisure-label">
-                            {b.gap ? 'voľno' : b.hint ? 'tip na voľno' : 'voľný čas'}
+                            {t('voľno')}
                             {height >= 40 && <span className="leisure-len"> {fmtDuration(mins)}</span>}
                           </span>
                         )}
@@ -411,7 +412,7 @@ export function TimeGrid({
                       if (consumeClickSuppression()) return;
                       p.onClick?.();
                     }}
-                    title={`${p.title}, ${fmtTime(p.start)}–${fmtTime(p.end)}${p.onMove ? '. Ťahaj na presun, spodný okraj mení dĺžku.' : ''}`}
+                    title={`${p.title}, ${fmtTime(p.start)}–${fmtTime(p.end)}${p.onMove ? `. ${t('Ťahaj na presun, spodný okraj mení dĺžku.')}` : ''}`}
                   >
                     <span className="block-title">
                       {p.marker && <i className="marker" style={{ background: p.marker }} />}
@@ -445,7 +446,7 @@ export function TimeGrid({
                     <span className="block-title">{dragged.title}</span>
                     <span className="block-time">
                       {minutesToTime(preview.startMin)}–{minutesToTime(preview.endMin)}
-                      {conflict ? ', prekrýva sa' : ''}
+                      {conflict ? `, ${t('prekrýva sa')}` : ''}
                     </span>
                   </div>
                 )}

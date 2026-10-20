@@ -17,6 +17,7 @@ import {
 import { fmt, fmtTime, relativeDeadline } from '../lib/time';
 import type { Gig, GigMode } from '../lib/types';
 import { Chevron } from './WeekPage';
+import { t } from '../lib/i18n';
 
 type Tab = 'month' | 'unpaid' | 'all';
 
@@ -35,18 +36,17 @@ export function FreelancePage() {
       if (!categories.some((c) => c.name === FREELANCE_CATEGORY)) {
         await insert('categories', { name: FREELANCE_CATEGORY, color: FREELANCE_COLOR, sort_order: categories.length });
       }
-      if (await update('profiles', profile.id, { freelance_enabled: true })) notify('Freelance mód je zapnutý.', 'success');
+      if (await update('profiles', profile.id, { freelance_enabled: true })) notify(t('Freelance mód je zapnutý.'), 'success');
     };
     return (
       <div className="page">
         <div className="empty-state">
-          <h2>Freelance mód je vypnutý</h2>
+          <h2>{t('Freelance mód je vypnutý')}</h2>
           <p>
-            Zapni ho, ak si privyrábaš: akcie na mieste (nakladanie, sťahovanie, práca na podujatí) alebo projekty do
-            termínu. Uvidíš zárobky, výdavky aj čas na prípravu a cestu priamo v rozvrhu.
+            {t('Zapni ho, ak si privyrábaš: akcie na mieste (nakladanie, sťahovanie, práca na podujatí) alebo projekty do termínu. Uvidíš zárobky, výdavky aj čas na prípravu a cestu priamo v rozvrhu.')}
           </p>
           <button className="btn btn-primary" onClick={enable}>
-            Zapnúť freelance mód
+            {t('Zapnúť freelance mód')}
           </button>
         </div>
       </div>
@@ -81,43 +81,43 @@ export function FreelancePage() {
     <div className="page page-freelance">
       <header className="toolbar">
         <div className="toolbar-nav">
-          <h1 className="toolbar-title">Freelance</h1>
+          <h1 className="toolbar-title">{t('Freelance')}</h1>
         </div>
         <div className="toolbar-actions">
           <button className="btn btn-ghost" onClick={() => editor.editGig({ mode: other })}>
-            {other === 'event' ? 'Nová akcia' : 'Nový projekt'}
+            {other === 'event' ? t('Nová akcia') : t('Nový projekt')}
           </button>
           <button className="btn btn-primary" onClick={() => editor.editGig({ mode: defaultMode })}>
-            {defaultMode === 'event' ? 'Nová akcia' : 'Nový projekt'}
+            {defaultMode === 'event' ? t('Nová akcia') : t('Nový projekt')}
           </button>
         </div>
       </header>
 
-      <section className="ledger" aria-label={`Prehľad za ${fmt(month, 'LLLL yyyy')}`}>
+      <section className="ledger" aria-label={t('Prehľad za {month}', { month: fmt(month, 'LLLL yyyy') })}>
         <div className="ledger-month">
-          <button className="icon-btn" onClick={() => setMonth(addMonths(month, -1))} aria-label="Predchádzajúci mesiac">
+          <button className="icon-btn" onClick={() => setMonth(addMonths(month, -1))} aria-label={t('Predchádzajúci mesiac')}>
             <Chevron dir="left" />
           </button>
           <span>{fmt(month, 'LLLL yyyy')}</span>
-          <button className="icon-btn" onClick={() => setMonth(addMonths(month, 1))} aria-label="Ďalší mesiac">
+          <button className="icon-btn" onClick={() => setMonth(addMonths(month, 1))} aria-label={t('Ďalší mesiac')}>
             <Chevron dir="right" />
           </button>
         </div>
         <dl className="ledger-rows">
           <div>
-            <dt>Zárobok</dt>
+            <dt>{t('Zárobok')}</dt>
             <dd>{fmtMoney(earned)}</dd>
           </div>
           <div>
-            <dt>Výdavky</dt>
+            <dt>{t('Výdavky')}</dt>
             <dd>−{fmtMoney(spent)}</dd>
           </div>
           <div className="is-net">
-            <dt>Čistý zisk</dt>
+            <dt>{t('Čistý zisk')}</dt>
             <dd className={earned - spent < 0 ? 'is-loss' : undefined}>{fmtMoney(earned - spent)}</dd>
           </div>
           <div className="is-owed">
-            <dt>Čaká na platbu</dt>
+            <dt>{t('Čaká na platbu')}</dt>
             <dd>
               {fmtMoney(owed)}
               {unpaid.length > 0 && <small> ({unpaid.length})</small>}
@@ -127,12 +127,12 @@ export function FreelancePage() {
       </section>
 
       <div className="freelance-filters">
-        <div className="segmented small" role="radiogroup" aria-label="Zobraziť">
+        <div className="segmented small" role="radiogroup" aria-label={t('Zobraziť')}>
           {(
             [
-              ['month', 'Tento mesiac'],
-              ['unpaid', `Na platbu${unpaid.length ? ` (${unpaid.length})` : ''}`],
-              ['all', 'Celá história'],
+              ['month', t('Tento mesiac')],
+              ['unpaid', `${t('Na platbu')}${unpaid.length ? ` (${unpaid.length})` : ''}`],
+              ['all', t('Celá história')],
             ] as [Tab, string][]
           ).map(([v, l]) => (
             <button key={v} role="radio" aria-checked={tab === v} onClick={() => setTab(v)}>
@@ -140,12 +140,12 @@ export function FreelancePage() {
             </button>
           ))}
         </div>
-        <div className="segmented small" role="radiogroup" aria-label="Druh">
+        <div className="segmented small" role="radiogroup" aria-label={t('Druh')}>
           {(
             [
-              ['all', 'Všetky druhy'],
-              ['event', 'Akcie'],
-              ['project', 'Projekty'],
+              ['all', t('Všetky druhy')],
+              ['event', t('Akcie')],
+              ['project', t('Projekty')],
             ] as [GigMode | 'all', string][]
           ).map(([v, l]) => (
             <button key={v} role="radio" aria-checked={modeFilter === v} onClick={() => setModeFilter(v)}>
@@ -159,11 +159,11 @@ export function FreelancePage() {
         <div className="empty-state">
           <p>
             {tab === 'unpaid'
-              ? 'Nikto ti nič nedlží.'
+              ? t('Nikto ti nič nedlží.')
               : tab === 'month'
-                ? `V ${fmt(month, 'LLLL')} zatiaľ nič.`
-                : 'Zatiaľ žiadna freelance práca.'}{' '}
-            Pridaj akciu s časom a miestom alebo projekt s termínom.
+                ? t('V mesiaci {month} zatiaľ nič.', { month: fmt(month, 'LLLL') })
+                : t('Zatiaľ žiadna freelance práca.')}{' '}
+            {t('Pridaj akciu s časom a miestom alebo projekt s termínom.')}
           </p>
         </div>
       ) : (
@@ -189,18 +189,18 @@ export function FreelancePage() {
 
 const STATUS_ORDER: Gig['status'][] = ['planned', 'confirmed', 'done', 'paid', 'cancelled'];
 const STATUS_SHORT: Record<Gig['status'], string> = {
-  planned: 'Dohodnuté',
-  confirmed: 'Potvrdené',
-  done: 'Čaká na platbu',
-  paid: 'Zaplatené',
-  cancelled: 'Zrušené',
+  get planned() { return t('Dohodnuté'); },
+  get confirmed() { return t('Potvrdené'); },
+  get done() { return t('Čaká na platbu'); },
+  get paid() { return t('Zaplatené'); },
+  get cancelled() { return t('Zrušené'); },
 };
 const STATUS_TOAST: Record<Gig['status'], string> = {
-  planned: 'Dohodnuté',
-  confirmed: 'Potvrdené',
-  done: 'Hotovo',
-  paid: 'Zaplatené',
-  cancelled: 'Zrušené',
+  get planned() { return t('Dohodnuté'); },
+  get confirmed() { return t('Potvrdené'); },
+  get done() { return t('Hotovo'); },
+  get paid() { return t('Zaplatené'); },
+  get cancelled() { return t('Zrušené'); },
 };
 
 function GigRow({ gig: g }: { gig: Gig }) {
@@ -246,25 +246,25 @@ function GigRow({ gig: g }: { gig: Gig }) {
             <span>
               {fmtTime(g.starts_at)}–{fmtTime(g.ends_at)}
               {g.prep_minutes + g.travel_minutes > 0
-                ? `, odchod ${fmtTime(new Date(new Date(g.starts_at).getTime() - (g.prep_minutes + g.travel_minutes) * 60000))}`
+                ? `, ${t('odchod {time}', { time: fmtTime(new Date(new Date(g.starts_at).getTime() - (g.prep_minutes + g.travel_minutes) * 60000)) })}`
                 : ''}
             </span>
           )}
-          {g.mode === 'project' && g.deadline && <span>odovzdať {relativeDeadline(g.deadline)}</span>}
+          {g.mode === 'project' && g.deadline && <span>{t('odovzdať {when}', { when: relativeDeadline(g.deadline) })}</span>}
           {g.location && <span>{g.location}</span>}
           {g.client && <span>{g.client}</span>}
         </span>
       </button>
       <div className="gig-money">
         <b className={net < 0 ? 'is-loss' : undefined}>{fmtMoney(net)}</b>
-        {spent > 0 && <span>výdavky {fmtMoney(spent)}</span>}
+        {spent > 0 && <span>{t('výdavky {sum}', { sum: fmtMoney(spent) })}</span>}
         <div className="gig-actions">
           <select
             className="status-pill"
             data-status={status}
             value={status}
             onChange={(e) => setStatus(e.target.value as Gig['status'])}
-            aria-label={`Stav: ${g.title}`}
+            aria-label={t('Stav: {title}', { title: g.title })}
             title={GIG_STATUS[status]}
           >
             {STATUS_ORDER.map((s) => (
@@ -275,12 +275,12 @@ function GigRow({ gig: g }: { gig: Gig }) {
           </select>
           {(status === 'planned' || status === 'confirmed') && (past || g.mode === 'project') && (
             <button className="btn btn-ghost btn-small" onClick={() => setStatus('done')}>
-              Hotovo
+              {t('Hotovo')}
             </button>
           )}
           {status === 'done' && (
             <button className="btn btn-primary btn-small" onClick={() => setStatus('paid')}>
-              Zaplatené
+              {t('Zaplatené')}
             </button>
           )}
         </div>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- public/icon.svg without its rounded square, scaled into the adaptive-icon safe zone -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group android:scaleX="0.8" android:scaleY="0.8" android:pivotX="256" android:pivotY="256">
+        <path
+            android:pathData="M96,176h320M96,256h320M96,336h320M176,96v320M256,96v320M336,96v320"
+            android:strokeColor="#47FFFFFF"
+            android:strokeWidth="6" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M196,184h40a12,12 0,0 1,12 12v120a12,12 0,0 1,-12 12h-40a12,12 0,0 1,-12 -12v-120a12,12 0,0 1,12 -12z" />
+        <path
+            android:fillColor="#F2C14E"
+            android:pathData="M276,264h40a12,12 0,0 1,12 12v40a12,12 0,0 1,-12 12h-40a12,12 0,0 1,-12 -12v-40a12,12 0,0 1,12 -12z" />
+        <path
+            android:pathData="M96,228h320"
+            android:strokeColor="#FF6B5E"
+            android:strokeLineCap="round"
+            android:strokeWidth="14" />
+    </group>
+</vector>

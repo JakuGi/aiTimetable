@@ -8,26 +8,27 @@ import { planFollowUp, sessionMinutes } from '../lib/planner';
 import { priorityColor } from '../lib/meta';
 import { fmt, fmtDuration, fmtTime } from '../lib/time';
 import { useGender } from '../lib/gender';
+import { t } from '../lib/i18n';
 import type { Session } from '../lib/types';
 
 const EXTRA = [15, 30, 45, 60, 90, 120];
 
 const day = (d: string) => {
   const date = new Date(d);
-  if (isToday(date)) return 'dnes';
-  if (isYesterday(date)) return 'včera';
-  if (isTomorrow(date)) return 'zajtra';
+  if (isToday(date)) return t('dnes');
+  if (isYesterday(date)) return t('včera');
+  if (isTomorrow(date)) return t('zajtra');
   return fmt(date, 'EEEE d. M.');
 };
 
 function useNow(every: number) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), every);
+    const timer = setInterval(() => setNow(new Date()), every);
     const wake = () => document.visibilityState === 'visible' && setNow(new Date());
     document.addEventListener('visibilitychange', wake);
     return () => {
-      clearInterval(t);
+      clearInterval(timer);
       document.removeEventListener('visibilitychange', wake);
     };
   }, [every]);
@@ -52,7 +53,7 @@ export function CheckInPanel() {
     return (
       <button className="checkin-pill" onClick={() => setLater(new Set())}>
         <span className="checkin-dot" aria-hidden="true" />
-        Ako išli bloky?
+        {t('Ako išli bloky?')}
         <span className="badge">{pending.length}</span>
       </button>
     );
@@ -113,7 +114,21 @@ function CheckInCard({
     );
     const missing = warnings[0]?.missingMinutes ?? 0;
     if (!suggestions.length) {
-      notify(`Na ${fmtDuration(minutes)} som nenašiel voľný čas${task.deadline ? ' do termínu' : ''}. Uvoľni čas v rozvrhu alebo posuň termín.`, 'error');
+      const time = fmtDuration(minutes);
+      notify(
+        task.deadline
+          ? g(
+              'Na {time} som nenašiel voľný čas do termínu. Uvoľni čas v rozvrhu alebo posuň termín.',
+              'Na {time} som nenašla voľný čas do termínu. Uvoľni čas v rozvrhu alebo posuň termín.',
+              { time },
+            )
+          : g(
+              'Na {time} som nenašiel voľný čas. Uvoľni čas v rozvrhu alebo posuň termín.',
+              'Na {time} som nenašla voľný čas. Uvoľni čas v rozvrhu alebo posuň termín.',
+              { time },
+            ),
+        'error',
+      );
       return;
     }
     const ok = await data.insertMany(
@@ -129,12 +144,19 @@ function CheckInCard({
     if (!ok) return;
     const first = suggestions[0];
     const where = `${day(first.start.toISOString())} ${fmtTime(first.start)}–${fmtTime(first.end)}`;
-    const rest = suggestions.length > 1 ? ` a ešte ${suggestions.length - 1}× ďalej` : '';
-    const reserved = intrusions.length ? ' Kvôli termínu som musel siahnuť do tvojho vyhradeného voľna.' : '';
-    notify(
-      `Ceruzkou: ${task.title}, ${where}${rest}.${missing ? ` Do termínu sa nezmestí ${fmtDuration(missing)}.` : ''}${reserved} Prijmi ho v rozvrhu.`,
-      missing || reserved ? 'info' : 'success',
-    );
+    const parts = [
+      suggestions.length > 1
+        ? t('Ceruzkou: {title}, {where} a ešte {n}× ďalej.', { title: task.title, where, n: suggestions.length - 1 })
+        : t('Ceruzkou: {title}, {where}.', { title: task.title, where }),
+    ];
+    if (missing) parts.push(t('Do termínu sa nezmestí {time}.', { time: fmtDuration(missing) }));
+    if (intrusions.length) {
+      parts.push(
+        g('Kvôli termínu som musel siahnuť do tvojho vyhradeného voľna.', 'Kvôli termínu som musela siahnuť do tvojho vyhradeného voľna.'),
+      );
+    }
+    parts.push(t('Prijmi ho v záložke Môj týždeň.'));
+    notify(parts.join(' '), missing || intrusions.length ? 'info' : 'success');
   };
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -165,16 +187,19 @@ function CheckInCard({
       if (!(await data.setSessionStatus([session.id], 'done'))) return;
       if (!(await data.update('tasks', task.id, { status: 'done', completed_at: new Date().toISOString() }))) return;
       await data.settleFinishedTask(task.id);
-      notify(`Hotovo: ${task.title}`, 'success');
+      notify(t('Hotovo: {title}', { title: task.title }), 'success');
     });
 
   return (
-    <section className="checkin" role="region" aria-label="Ako išiel blok práce" style={{ '--c': color } as CSSProperties}>
+    <section className="checkin" role="region" aria-label={t('Ako išiel blok práce')} style={{ '--c': color } as CSSProperties}>
       <header className="checkin-head">
         <span className="checkin-dot" aria-hidden="true" />
-        <span>Blok skončil{count > 1 ? ` · ${index} z ${count}` : ''}</span>
+        <span>
+          {t('Blok skončil')}
+          {count > 1 ? ` · ${t('{index} z {count}', { index, count })}` : ''}
+        </span>
         <button className="checkin-later" onClick={onLater} disabled={busy}>
-          Neskôr
+          {t('Neskôr')}
         </button>
       </header>
       <button className="checkin-title" onClick={() => editor.editTask(task)}>
@@ -194,16 +219,16 @@ function CheckInCard({
           </button>
           <button className="btn btn-ghost" onClick={notDone} disabled={busy}>
             {g('Nesplnil som', 'Nesplnila som')}
-            <small>naplánujem {fmtDuration(length)} znova ceruzkou</small>
+            <small>{t('naplánujem {time} znova ceruzkou', { time: fmtDuration(length) })}</small>
           </button>
           <button className="link-btn checkin-finish" onClick={taskDone} disabled={busy}>
-            Celá úloha je už hotová
+            {t('Celá úloha je už hotová')}
           </button>
         </div>
       ) : (
         <div className="checkin-more">
-          <p className="checkin-q">Koľko času ešte treba?</p>
-          <div className="chips" role="group" aria-label="Ďalší čas">
+          <p className="checkin-q">{t('Koľko času ešte treba?')}</p>
+          <div className="chips" role="group" aria-label={t('Ďalší čas')}>
             {EXTRA.map((m) => (
               <button key={m} className="chip" aria-pressed={extra === m} onClick={() => setExtra(m)}>
                 {fmtDuration(m)}
@@ -211,7 +236,7 @@ function CheckInCard({
             ))}
           </div>
           <label className="checkin-custom">
-            Iné:
+            {t('Iné:')}
             <input
               type="number"
               min={5}
@@ -223,15 +248,17 @@ function CheckInCard({
             min
           </label>
           <p className="small muted">
-            Pridám to k odhadu úlohy ({fmtDuration(task.estimated_minutes)} → {fmtDuration(task.estimated_minutes + add)}) a nájdem
-            voľný čas ceruzkou.
+            {t('Pridám to k odhadu úlohy ({from} → {to}) a nájdem voľný čas ceruzkou.', {
+              from: fmtDuration(task.estimated_minutes),
+              to: fmtDuration(task.estimated_minutes + add),
+            })}
           </p>
           <div className="checkin-row">
             <button className="btn btn-ghost" onClick={() => setMore(false)} disabled={busy}>
-              Späť
+              {t('Späť')}
             </button>
             <button className="btn btn-primary" onClick={needMore} disabled={busy || extra < 5}>
-              {busy ? 'Plánujem…' : `Naplánovať ${fmtDuration(add)}`}
+              {busy ? t('Plánujem…') : t('Naplánovať {time}', { time: fmtDuration(add) })}
             </button>
           </div>
         </div>
