@@ -75,7 +75,7 @@ export function LeisureSettings() {
         </div>
         <span className="field-hint">
           {t(
-            'V dňoch s prácou nechá plánovač medzi blokmi medzery spolu aspoň na tento čas. Nakreslené voľno a udalosti typu Voľný čas sa doň rátajú.',
+            'V dňoch s prácou nechá plánovač medzi blokmi medzery spolu aspoň na tento čas. Voľné chvíle ti ukáže ako návrh aj v dňoch bez práce. Nakreslené voľno a udalosti typu Voľný čas sa doň rátajú.',
           )}
         </span>
       </div>

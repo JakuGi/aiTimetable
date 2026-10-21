@@ -479,7 +479,7 @@ const dict: Record<string, string> = {
   'Utorok': 'Tuesday',
   'Učebňa': 'Room',
   'Už máš účet?': 'Have an account?',
-  'V dňoch s prácou nechá plánovač medzi blokmi medzery spolu aspoň na tento čas. Nakreslené voľno a udalosti typu Voľný čas sa doň rátajú.': 'On days with work, the planner leaves gaps between blocks adding up to at least this much. Drawn free time and Free time events count towards it.',
+  'V dňoch s prácou nechá plánovač medzi blokmi medzery spolu aspoň na tento čas. Voľné chvíle ti ukáže ako návrh aj v dňoch bez práce. Nakreslené voľno a udalosti typu Voľný čas sa doň rátajú.': 'On days with work, the planner leaves gaps between blocks adding up to at least this much. It suggests free moments on days without work too. Drawn free time and Free time events count towards it.',
   'V mesiaci {month} zatiaľ nič.': 'Nothing in {month} yet.',
   'V najbližších {n} dňoch chýba {time}.': '{time} is missing in the next {n} days.',
   'V tomto čase prídu len pripomienky udalostí a odchod na akcie.': 'During this time only event reminders and leaving for gigs come through.',
