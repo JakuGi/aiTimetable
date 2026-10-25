@@ -180,6 +180,15 @@ export interface Session {
   status: SessionStatus;
 }
 
+/** A regular block that doesn't happen on one day; routine_block_id null = the whole day off (holiday). */
+export interface RoutineSkip {
+  id: string;
+  user_id: string;
+  routine_block_id: string | null;
+  day: string; // "YYYY-MM-DD"
+  note: string | null;
+}
+
 export type TableName =
   | 'profiles'
   | 'categories'
@@ -189,4 +198,5 @@ export type TableName =
   | 'sessions'
   | 'event_templates'
   | 'gigs'
-  | 'free_blocks';
+  | 'free_blocks'
+  | 'routine_skips';

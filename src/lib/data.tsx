@@ -8,6 +8,7 @@ import type {
   EventTemplate,
   FreeBlock,
   Gig,
+  RoutineSkip,
   Profile,
   RoutineBlock,
   Session,
@@ -27,6 +28,7 @@ interface Tables {
   event_templates: EventTemplate[];
   gigs: Gig[];
   free_blocks: FreeBlock[];
+  routine_skips: RoutineSkip[];
 }
 
 type Row<T extends TableName> = Tables[T][number];
@@ -61,6 +63,7 @@ const ORDER: Record<TableName, { column: string; ascending: boolean }> = {
   event_templates: { column: 'start_time', ascending: true },
   gigs: { column: 'created_at', ascending: false },
   free_blocks: { column: 'starts_at', ascending: true },
+  routine_skips: { column: 'day', ascending: true },
 };
 
 const TABLES = Object.keys(ORDER) as TableName[];
@@ -74,6 +77,7 @@ const EMPTY: Tables = {
   event_templates: [],
   gigs: [],
   free_blocks: [],
+  routine_skips: [],
 };
 
 const DataContext = createContext<DataApi | null>(null);
@@ -225,6 +229,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       event_templates: data.event_templates,
       gigs: data.gigs,
       free_blocks: data.free_blocks,
+      routine_skips: data.routine_skips,
       loading,
       insert,
       insertMany,

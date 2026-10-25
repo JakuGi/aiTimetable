@@ -108,6 +108,7 @@ function CheckInCard({
         tasks: data.tasks,
         gigs: data.profile.freelance_enabled ? data.gigs : [],
         freeBlocks: data.free_blocks,
+        skips: data.routine_skips,
       },
       task.id,
       minutes,

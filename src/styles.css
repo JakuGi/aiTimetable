@@ -1017,6 +1017,33 @@ input[type='checkbox'] {
   border: 1.5px dashed color-mix(in srgb, var(--c) 70%, var(--pencil));
   color: var(--ink);
 }
+/* cancelled that day (a class off, a holiday): crossed out, see-through */
+.block-cancelled {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--c) 10%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+  border-left: 3px dashed color-mix(in srgb, var(--c) 60%, transparent);
+  color: var(--muted);
+}
+.block-cancelled .block-title,
+.block-cancelled .block-time {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+button.grid-day-head {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  cursor: pointer;
+}
+button.grid-day-head:hover {
+  background: var(--sunk);
+}
 /* done: struck through, quiet */
 .block-done {
   background: color-mix(in srgb, var(--c) 12%, var(--surface));
@@ -3441,4 +3468,70 @@ body:has(.checkin) .toasts {
 .in-app [contenteditable] {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* ------------------------------------------------------------------ classes off, holidays */
+
+.skip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.skip-holiday {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 12px 14px;
+  border-radius: var(--radius-m);
+  background: var(--sunk);
+}
+.skip-holiday h3,
+.skip-blocks h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.skip-holiday p {
+  margin: 0;
+}
+.skip-holiday .row-2 {
+  width: 100%;
+}
+.skip-holiday.is-on {
+  background: color-mix(in srgb, var(--leisure) 12%, var(--surface));
+  border-left: 3px solid var(--leisure);
+}
+.skip-blocks {
+  margin-top: 18px;
+}
+.skip-blocks ul {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.skip-blocks label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--c);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  background: color-mix(in srgb, var(--c) 10%, var(--surface));
+  cursor: pointer;
+}
+.skip-blocks label.is-off .skip-time,
+.skip-blocks label.is-off .skip-title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.skip-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.skip-title {
+  flex: 1;
+  font-weight: 600;
 }

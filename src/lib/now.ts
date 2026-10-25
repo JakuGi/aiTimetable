@@ -1,8 +1,8 @@
 import { addDays, startOfDay } from 'date-fns';
-import { routineAppliesOn } from './planner';
+import { routineAppliesOn, routineSkipped } from './planner';
 import { atMinutes, fmtDuration, fmtTime, MINUTE, timeToMinutes } from './time';
 import { t } from './i18n';
-import type { CalendarEvent, FreeBlock, Gig, Gender, RoutineBlock, Session, Task } from './types';
+import type { CalendarEvent, FreeBlock, Gig, Gender, RoutineBlock, RoutineSkip, Session, Task } from './types';
 
 export type NowKind = 'work' | 'school' | 'job' | 'commute' | 'event' | 'gig' | 'free' | 'other';
 
@@ -26,6 +26,7 @@ export interface NowInput {
   tasks: Task[];
   gigs: Gig[];
   freeBlocks: FreeBlock[];
+  skips?: Pick<RoutineSkip, 'routine_block_id' | 'day'>[];
 }
 
 /** what matters more when two things overlap */
@@ -40,7 +41,7 @@ export function dayItems(input: NowInput): NowItem[] {
 
   for (const day of [today, addDays(today, 1)]) {
     for (const r of input.routine) {
-      if (!routineAppliesOn(r, day, input.oddAnchor) || r.kind === 'leisure') continue;
+      if (!routineAppliesOn(r, day, input.oddAnchor) || r.kind === 'leisure' || routineSkipped(r, day, input.skips)) continue;
       out.push({
         kind: r.kind === 'class' ? 'school' : r.kind === 'work' ? 'job' : 'other',
         title: r.title,

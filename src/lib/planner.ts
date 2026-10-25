@@ -1,5 +1,5 @@
 import { addDays, startOfDay } from 'date-fns';
-import type { CalendarEvent, FreeBlock, Gig, Profile, RoutineBlock, Session, Task } from './types';
+import type { CalendarEvent, FreeBlock, Gig, Profile, RoutineBlock, RoutineSkip, Session, Task } from './types';
 import { gigBusy } from './freelance';
 import { DAY, MINUTE, atMinutes, isoWeekday, timeToMinutes, toDateInput, weekParity } from './time';
 
@@ -41,6 +41,8 @@ export interface PlannerInput {
   gigs?: Gig[];
   /** free time drawn by hand: kept empty, given up last and only for a deadline */
   freeBlocks?: Pick<FreeBlock, 'starts_at' | 'ends_at'>[];
+  /** regular blocks cancelled on a day, or whole days off: that time is free */
+  skips?: Pick<RoutineSkip, 'routine_block_id' | 'day'>[];
 }
 
 export interface Suggestion {
@@ -113,6 +115,16 @@ export function routineAppliesOn(block: RoutineBlock, day: Date, oddAnchor: stri
   if (block.valid_until && d > block.valid_until) return false;
   return true;
 }
+
+/** Cancelled that day: the block itself, or the whole day is a holiday. */
+export function routineSkipped(block: RoutineBlock, day: Date, skips: PlannerInput['skips'] = []): boolean {
+  const d = toDateInput(day);
+  return skips.some((s) => s.day === d && (s.routine_block_id === null || s.routine_block_id === block.id));
+}
+
+/** The whole day is off (holiday, school break). */
+export const isDayOff = (day: Date, skips: PlannerInput['skips'] = []) =>
+  skips.some((s) => s.routine_block_id === null && s.day === toDateInput(day));
 
 export function eventInterval(e: CalendarEvent): Interval {
   const start = new Date(e.starts_at);
@@ -252,7 +264,7 @@ export interface FixedDay {
   reserved: Interval[];
 }
 
-type FixedInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs' | 'freeBlocks'>;
+type FixedInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs' | 'freeBlocks' | 'skips'>;
 
 /** The fixed part of one day, the same for the planner and for drawing the free-time window. */
 export function fixedTime(date: Date, input: FixedInput, routineOn?: (r: RoutineBlock) => boolean): FixedDay {
@@ -260,7 +272,9 @@ export function fixedTime(date: Date, input: FixedInput, routineOn?: (r: Routine
   const dayStart = atMinutes(date, timeToMinutes(profile.day_start)).getTime();
   const dayEnd = atMinutes(date, timeToMinutes(profile.day_end)).getTime();
   const dayInterval = { start: dayStart, end: dayEnd };
-  const applies = routineOn ?? ((r: RoutineBlock) => routineAppliesOn(r, date, profile.odd_week_anchor));
+  const applies =
+    routineOn ??
+    ((r: RoutineBlock) => routineAppliesOn(r, date, profile.odd_week_anchor) && !routineSkipped(r, date, input.skips));
   const busy: Interval[] = [];
   let leisureHad = 0;
 

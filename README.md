@@ -10,6 +10,7 @@ Týždenný rozvrh, úlohy s termínmi a návrhy, kedy čo robiť. Jedna appka p
   - **Zvonenie**: časy hodín nastavíš raz v Nastaveniach, potom stačí kliknúť „3.–4. hodina“.
   - **Párne a nepárne týždne**: každý blok môže platiť každý týždeň, len v nepárnom alebo len v párnom. Ktorý týždeň je ktorý, nastavíš jedným klikom v Nastaveniach a ďalej sa striedajú samé.
   - „Uložiť a pridať ďalší“ nechá dni aj párnosť a posunie sa na ďalšiu hodinu.
+- **Odpadnuté hodiny a sviatky**: klik na blok z rozvrhu v Môj týždeň ponúkne *Odpadá (len tento deň)*, klik na hlavičku dňa otvorí deň, kde ho označíš ako sviatok (aj na viac dní, napr. prázdniny) alebo zaškrtneš, čo odpadá. Takéto bloky sú prečiarknuté a plánovač ich čas berie ako voľný; pravidelný rozvrh ostáva.
 - **Spoje (autobusy, vlaky)**: nie sú v pravidelnom týždni. Uložíš si ich raz a v Môj týždeň ich vkladáš len do dní konkrétneho týždňa, keď ich potrebuješ. „Skopírovať cesty z minulého týždňa“ prenesie všetky cesty jedným klikom.
 - **Úlohy**: čo treba urobiť, dôležitosť (4 úrovne s vlastnými farbami), odhad času, termín, kategória, priebeh.
 - **Plánovač** (tlačidlo *Navrhnúť plán*): nájde voľný čas medzi rozvrhom a udalosťami a rozloží do neho prácu na úlohách. Návrh je zakreslený „ceruzkou“, každý blok môžeš prijať, posunúť alebo zahodiť. Pravidlá:

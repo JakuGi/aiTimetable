@@ -48,6 +48,7 @@ export function NowCard() {
     tasks: data.tasks,
     gigs: data.profile.freelance_enabled ? data.gigs : [],
     freeBlocks: data.free_blocks,
+    skips: data.routine_skips,
   });
   const cur = currentLine(current, now, data.profile.gender);
   const nxt = nextLine(next, now);

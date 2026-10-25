@@ -9,6 +9,7 @@ import { EventDialog } from './EventDialog';
 import { RoutineDialog } from './RoutineDialog';
 import { SessionDialog } from './SessionDialog';
 import { TaskDialog } from './TaskDialog';
+import { DayDialog, RoutineDayDialog } from './SkipDialogs';
 
 type Open =
   | { type: 'event'; initial: Partial<CalendarEvent> }
@@ -19,7 +20,9 @@ type Open =
   | { type: 'place'; template: EventTemplate; weekStart: Date }
   | { type: 'classGrid'; parity: WeekParity }
   | { type: 'gig'; initial: Partial<Gig>; key: number }
-  | { type: 'free'; block: FreeBlock };
+  | { type: 'free'; block: FreeBlock }
+  | { type: 'routineDay'; routine: RoutineBlock; day: Date }
+  | { type: 'day'; day: Date };
 
 interface EditorApi {
   editEvent: (initial?: Partial<CalendarEvent>) => void;
@@ -31,6 +34,10 @@ interface EditorApi {
   editClassGrid: (parity?: WeekParity) => void;
   editGig: (initial?: Partial<Gig>) => void;
   editFreeBlock: (block: FreeBlock) => void;
+  /** one day of a regular block: cancel it that day, or the whole day */
+  editRoutineDay: (routine: RoutineBlock, day: Date) => void;
+  /** a day: holiday, which regular blocks are off */
+  editDay: (day: Date) => void;
 }
 
 const EditorContext = createContext<EditorApi | null>(null);
@@ -51,6 +58,8 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     editClassGrid: (parity = 'all') => setOpen({ type: 'classGrid', parity }),
     editGig: (initial = {}) => setOpen({ type: 'gig', initial, key: Date.now() }),
     editFreeBlock: (block) => setOpen({ type: 'free', block }),
+    editRoutineDay: (routine, day) => setOpen({ type: 'routineDay', routine, day }),
+    editDay: (day) => setOpen({ type: 'day', day }),
   };
 
   return (
@@ -85,6 +94,16 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       {open?.type === 'classGrid' && <ClassGridDialog initialParity={open.parity} onClose={close} />}
       {open?.type === 'gig' && <GigDialog key={open.key} initial={open.initial} onClose={close} />}
       {open?.type === 'free' && <FreeBlockDialog key={open.block.id} block={open.block} onClose={close} />}
+      {open?.type === 'routineDay' && (
+        <RoutineDayDialog
+          routine={open.routine}
+          day={open.day}
+          onClose={close}
+          onEdit={() => setOpen({ type: 'routine', initial: open.routine })}
+          onDay={() => setOpen({ type: 'day', day: open.day })}
+        />
+      )}
+      {open?.type === 'day' && <DayDialog day={open.day} onClose={close} />}
     </EditorContext.Provider>
   );
 }

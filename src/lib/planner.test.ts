@@ -420,3 +420,21 @@ describe('free time reserved by hand', () => {
     expect(warnings[0]).toMatchObject({ reason: 'horizon' });
   });
 });
+
+describe('regular blocks that are off', () => {
+  const at = (h: number, m = 0) => new Date(2026, 9, 12, h, m).getTime();
+  const school = routine({ id: 'school' });
+  const oneDay = { ...profile, planning_horizon_days: 1, focus_block_minutes: 720, max_focus_minutes_per_day: 720, leisure_minutes_per_day: 0 };
+  const input = (skips: { routine_block_id: string | null; day: string }[]) =>
+    plan({ now, profile: oneDay, routine: [school], events: [], sessions: [], tasks: [task({ estimated_minutes: 720 })], skips });
+
+  it('a class off that day frees its time', () => {
+    expect(input([]).suggestions[0].start.getTime()).toBe(at(14));
+    expect(input([{ routine_block_id: 'school', day: '2026-10-12' }]).suggestions[0].start.getTime()).toBe(at(8));
+  });
+
+  it('a holiday frees every regular block of the day, other days stay', () => {
+    expect(input([{ routine_block_id: null, day: '2026-10-12' }]).suggestions[0].start.getTime()).toBe(at(8));
+    expect(input([{ routine_block_id: null, day: '2026-10-13' }]).suggestions[0].start.getTime()).toBe(at(14));
+  });
+});

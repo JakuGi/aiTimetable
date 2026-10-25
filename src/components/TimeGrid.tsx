@@ -16,7 +16,7 @@ import { textOn } from '../lib/meta';
 import { t } from '../lib/i18n';
 import { useGridDrag } from './useGridDrag';
 
-export type GridVariant = 'routine' | 'solid' | 'pencil' | 'done' | 'reserved';
+export type GridVariant = 'routine' | 'solid' | 'pencil' | 'done' | 'reserved' | 'cancelled';
 
 export interface GridItem {
   id: string;
@@ -60,6 +60,8 @@ interface Props {
   onDraw?: (start: Date, end: Date) => void;
   /** horizontal swipe on touch screens: -1 = previous, 1 = next */
   onSwipe?: (dir: 1 | -1) => void;
+  /** the day's heading opens that day (e.g. to mark it as a holiday) */
+  onDayClick?: (day: Date) => void;
 }
 
 export const HOUR_PX = 48;
@@ -139,6 +141,7 @@ export function TimeGrid({
   onSlotClick,
   onDraw,
   onSwipe,
+  onDayClick,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const columns = useRef<(HTMLDivElement | null)[]>([]);
@@ -299,12 +302,30 @@ export function TimeGrid({
     >
       <div className="grid-head">
         <div className="grid-gutter" />
-        {days.map((d) => (
-          <div key={d.toISOString()} className={`grid-day-head${!generic && isToday(d) ? ' is-today' : ''}`}>
-            <span className="dow">{fmt(d, generic ? 'EEEE' : 'EEE')}</span>
-            {!generic && <span className="dom">{fmt(d, 'd.')}</span>}
-          </div>
-        ))}
+        {days.map((d) => {
+          const cls = `grid-day-head${!generic && isToday(d) ? ' is-today' : ''}`;
+          const label = (
+            <>
+              <span className="dow">{fmt(d, generic ? 'EEEE' : 'EEE')}</span>
+              {!generic && <span className="dom">{fmt(d, 'd.')}</span>}
+            </>
+          );
+          return onDayClick ? (
+            <button
+              key={d.toISOString()}
+              type="button"
+              className={`${cls} is-button`}
+              onClick={() => onDayClick(d)}
+              title={t('Otvoriť deň: sviatok, odpadnuté hodiny')}
+            >
+              {label}
+            </button>
+          ) : (
+            <div key={d.toISOString()} className={cls}>
+              {label}
+            </div>
+          );
+        })}
       </div>
 
       {hasStrip && (

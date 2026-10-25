@@ -13,7 +13,7 @@ export interface LeisureBand {
   end: Date;
 }
 
-type BandInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs' | 'freeBlocks'>;
+type BandInput = Pick<PlannerInput, 'profile' | 'routine' | 'events' | 'sessions' | 'gigs' | 'freeBlocks' | 'skips'>;
 
 const MIN_GAP = 30;
 

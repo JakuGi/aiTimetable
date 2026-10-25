@@ -83,6 +83,7 @@ export function WeekPage() {
       tasks: data.tasks,
       gigs: data.profile.freelance_enabled ? data.gigs : [],
       freeBlocks: data.free_blocks,
+      skips: data.routine_skips,
     });
     const ok = await data.saveSuggestions(result.suggestions);
     setPlanning(false);
@@ -324,6 +325,7 @@ export function WeekPage() {
             onSlotClick={(start) => editor.editEvent({ starts_at: start.toISOString() })}
             onDraw={drawFree ? drawFreeBlock : undefined}
             onSwipe={narrow ? (dir) => go(addDays(anchor, dir * step)) : undefined}
+            onDayClick={editor.editDay}
           />
         </section>
 

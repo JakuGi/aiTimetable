@@ -3,7 +3,7 @@ import { addDays, isSameDay, startOfDay } from 'date-fns';
 import { useData } from './data';
 import { useEditor } from '../editor/Editor';
 import { EVENT_KINDS, ROUTINE_KINDS, priorityColor } from './meta';
-import { routineAppliesOn } from './planner';
+import { isDayOff, routineAppliesOn, routineSkipped } from './planner';
 import { FREELANCE_CATEGORY, FREELANCE_COLOR, fmtMoney, gigEarnings } from './freelance';
 import { atMinutes, fmtTime, timeToMinutes } from './time';
 import { LEISURE_GREEN, leisureBands, type LeisureBand } from './leisure';
@@ -38,24 +38,41 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
     const anchor = data.profile?.odd_week_anchor ?? '2024-01-01';
 
     for (const day of days) {
+      const dayOff = !opts.routineOnly && isDayOff(day, data.routine_skips);
       for (const r of data.routine_blocks) {
         if (!opts.routineOnly && !routineAppliesOn(r, day, anchor)) continue;
         if (opts.routineOnly) {
           if (!r.weekdays.includes(((day.getDay() + 6) % 7) + 1)) continue;
           if (opts.parity && r.week_parity !== 'all' && r.week_parity !== opts.parity) continue;
         }
+        // in a real week a block can be off that day: crossed out, and the time is free
+        const off = !opts.routineOnly && routineSkipped(r, day, data.routine_skips);
         items.push({
           id: `r-${r.id}-${day.getTime()}`,
           title: r.title,
-          detail:
-            [r.week_parity === 'odd' ? t('nepárny') : r.week_parity === 'even' ? t('párny') : null, r.location ?? r.notes]
-              .filter(Boolean)
-              .join(', ') || undefined,
+          detail: off
+            ? dayOff
+              ? t('sviatok, voľno')
+              : t('odpadá')
+            : [r.week_parity === 'odd' ? t('nepárny') : r.week_parity === 'even' ? t('párny') : null, r.location ?? r.notes]
+                .filter(Boolean)
+                .join(', ') || undefined,
           start: atMinutes(day, timeToMinutes(r.start_time)),
           end: atMinutes(day, timeToMinutes(r.end_time)),
           color: routineColor(r),
-          variant: 'routine',
-          onClick: () => editor.editRoutine(r),
+          variant: off ? 'cancelled' : 'routine',
+          onClick: () => (opts.routineOnly ? editor.editRoutine(r) : editor.editRoutineDay(r, day)),
+        });
+      }
+      if (dayOff) {
+        const note = data.routine_skips.find((s) => s.routine_block_id === null && isSameDay(new Date(`${s.day}T00:00`), day))?.note;
+        strip.push({
+          id: `off-${day.getTime()}`,
+          day,
+          title: note ? t('Sviatok: {name}', { name: note }) : t('Sviatok, voľno'),
+          color: LEISURE_GREEN,
+          kind: 'allday',
+          onClick: () => editor.editDay(day),
         });
       }
     }
@@ -232,6 +249,7 @@ export function useCalendarItems(days: Date[], opts: { routineOnly?: boolean; pa
         sessions: data.sessions,
         gigs: data.profile.freelance_enabled ? data.gigs : [],
         freeBlocks: data.free_blocks,
+        skips: data.routine_skips,
       });
     }
 
