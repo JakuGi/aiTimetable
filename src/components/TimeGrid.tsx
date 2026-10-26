@@ -86,8 +86,10 @@ function layoutDay(day: Date, items: GridItem[], fromHour: number, toHour: numbe
     .sort((a, b) => a.s - b.s || b.e - a.e);
 
   const placed: Placed[] = [];
-  // free time drawn by hand spans the whole column; anything that had to go there sits on top of it
-  for (const v of visible.filter((x) => x.item.variant === 'reserved')) {
+  // free time drawn by hand and regular blocks that are off span the whole column, underneath:
+  // anything put there sits on top of them
+  const underneath = (i: GridItem) => i.variant === 'reserved' || i.variant === 'cancelled';
+  for (const v of visible.filter((x) => underneath(x.item))) {
     placed.push({
       ...v.item,
       top: ((v.s - dayFrom) / (60 * MINUTE)) * HOUR_PX,
@@ -107,7 +109,7 @@ function layoutDay(day: Date, items: GridItem[], fromHour: number, toHour: numbe
   };
 
   for (const v of visible) {
-    if (v.item.variant === 'reserved') continue;
+    if (underneath(v.item)) continue;
     if (v.s >= clusterEnd) flush();
     let col = columnsEnd.findIndex((end) => end <= v.s);
     if (col === -1) {
@@ -278,7 +280,7 @@ export function TimeGrid({
     if (Date.now() - s.t < 600 && Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) onSwipe(dx < 0 ? 1 : -1);
   };
 
-  // does the dragged block land on top of something else?
+  // does the dragged block land on top of something else? (a block that is off that day is free time)
   const conflict = useMemo(() => {
     if (!preview) return false;
     const day = days[preview.dayIndex];
@@ -286,7 +288,12 @@ export function TimeGrid({
     const s = atMinutes(day, preview.startMin).getTime();
     const e = atMinutes(day, preview.endMin).getTime();
     return shown.some(
-      (i) => i.id !== preview.id && isSameDay(i.start, day) && i.start.getTime() < e && i.end.getTime() > s,
+      (i) =>
+        i.id !== preview.id &&
+        i.variant !== 'cancelled' &&
+        isSameDay(i.start, day) &&
+        i.start.getTime() < e &&
+        i.end.getTime() > s,
     );
   }, [preview, days, shown]);
 

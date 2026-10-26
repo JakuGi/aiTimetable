@@ -1027,6 +1027,11 @@ input[type='checkbox'] {
   border-left: 3px dashed color-mix(in srgb, var(--c) 60%, transparent);
   color: var(--muted);
 }
+.block-cancelled,
+.block-cancelled:hover {
+  z-index: 0;
+  box-shadow: none;
+}
 .block-cancelled .block-title,
 .block-cancelled .block-time {
   text-decoration: line-through;
